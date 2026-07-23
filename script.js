@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIGURATION & GLOBAL STATE
 // ==========================================
-const API_URL = "https://mt-lunar.guzelhosting.com/~Ataberk/api.php";
+const API_URL = "https://api.coldworksproduction.com/api.php";
 
 let users = JSON.parse(localStorage.getItem('cw_users_db')) || [];
 let currentUser = JSON.parse(localStorage.getItem('cw_current_session')) || null;
