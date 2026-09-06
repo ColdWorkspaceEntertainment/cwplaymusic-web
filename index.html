@@ -1,34 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CWPLAY.STORE ✨ Coming Soon!</title>
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="https://imgur.com/rEkYnnk.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CW PLAY — Cold Works Production</title>
+<link rel="icon" href="https://i.imgur.com/T8VJxnf.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <main class="redirect-card">
-        <div class="badge">COLD WORKS PRODUCTION 🌸</div>
-        <h1>CWPLAY.STORE</h1>
-        <p class="subtitle">This section is currently under construction! Please visit us again later. ✨</p>
-        
-        <div class="divider"></div>
+<div id="site-intro" aria-hidden="true">
+  <div class="intro-logo-container">
+    <img src="https://i.imgur.com/T8VJxnf.png" alt="" class="intro-logo">
+    <div class="intro-title">CW PLAY</div>
+  </div>
+</div>
 
-        <p class="info-text">In the meantime, feel free to visit our main website to explore our full portfolio:</p>
+<nav>
+  <a href="#welcome" class="logo">
+    <img src="https://i.imgur.com/T8VJxnf.png" alt="CW PLAY logo" class="logo-img">
+    CW PLAY
+  </a>
+  <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="navLinks" aria-label="Open menu">
+    <i class="fa-solid fa-bars"></i>
+  </button>
+  <ul id="navLinks" class="nav-links">
+    <li><a href="#welcome" data-nav>Home</a></li>
+    <li><a href="#channels" data-nav>Channels</a></li>
+    <li><a href="#about" data-nav>About</a></li>
+    <li><a href="#contact" data-nav>Contact</a></li>
+  </ul>
+</nav>
 
-        <a href="https://coldworksproduction.com" class="cute-btn redirect-btn">
-            Visit coldworksproduction.com 🚀
+<main>
+
+  <section id="welcome" class="hero">
+    <div>
+      <i class="fa-solid fa-compact-disc hero-icon"></i>
+      <h1>Welcome to CW PLAY!</h1>
+      <p>We're the music arm of Cold Works Production. Follow our productions,
+         releases, and the sounds we're working on right here.</p>
+      <div class="hero-buttons">
+        <a class="btn" href="#channels">Explore Channels</a>
+        <a class="btn-secondary" href="#about">Learn More</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="channels" class="content-section center-text">
+    <span class="sub-title">MUSIC</span>
+    <h2>Our Channels</h2>
+    <p class="section-lead">Where we share our music and behind-the-scenes content.</p>
+
+    <div class="partner-card">
+      <div class="social-links">
+        <a class="social-link social-youtube" href="https://www.youtube.com/@coldworksofficial" target="_blank" rel="noopener">
+          <i class="fa-brands fa-youtube"></i> YouTube
         </a>
-    </main>
+        <a class="social-link social-spotify" href="https://open.spotify.com/intl-tr/artist/7fu2bgzUOr2ktStyRI81wx?si=0oPm8PFhTX2Bo0XWraxmfw" rel="noopener">
+          <i class="fa-brands fa-spotify"></i> Spotify
+        </a>
+      </div>
+      <p class="channel-note">Follow us on both platforms for new releases and updates.</p>
+    </div>
+  </section>
 
-    <footer class="cute-footer">
-        © Cold Works Production. All rights reserved. ✨
-    </footer>
+  <section id="about" class="content-section center-text">
+    <span class="sub-title">ABOUT</span>
+    <h2>What is CW PLAY?</h2>
+    <p class="section-lead">
+      CW PLAY is the music production arm operating under Cold Works Production.
+      As part of Cold Works Production's wider creative universe, we're
+      shaping the sound of the brand.
+    </p>
 
-    <script src="script.js"></script>
+    <div class="mascot-card mascot-card--centered">
+      <ul>
+        <li><i class="fa-solid fa-music"></i> Original productions</li>
+        <li><i class="fa-solid fa-compact-disc"></i> Regular releases</li>
+        <li><i class="fa-solid fa-video"></i> Content that shares our process with viewers</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="contact" class="content-section center-text">
+    <span class="sub-title">CONTACT</span>
+    <h2>Get In Touch</h2>
+    <p class="section-lead">Have an idea, a collaboration proposal, or a question? Write to us, we're reading.</p>
+    <a class="btn" href="mailto:info@coldworksproduction.com">
+      <i class="fa-solid fa-envelope"></i> info@coldworksproduction.com
+    </a>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>CW PLAY is part of <a href="https://coldworksproduction.com/" target="_blank" rel="noopener">Cold Works Production</a>.</p>
+</footer>
+
+<script src="script.js"></script>
 </body>
 </html>
