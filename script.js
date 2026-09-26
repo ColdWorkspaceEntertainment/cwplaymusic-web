@@ -1,4 +1,4 @@
-// Mobile menu open/close
+// ---------- Mobile menu open/close ----------
 const navToggle = document.getElementById('navToggle');
 const navLinks = document.getElementById('navLinks');
 const navIcon = navToggle.querySelector('i');
@@ -19,25 +19,67 @@ navLinks.querySelectorAll('a').forEach((link) => {
   link.addEventListener('click', () => setMenuState(false));
 });
 
-// Highlight the nav link for the section currently in view
-const sections = document.querySelectorAll('main [id]');
+// ---------- Tabs: only one section visible at a time ----------
+const DEFAULT_TAB = 'welcome';
+const SITE_TITLE = 'CW PLAY — Cold Works Production';
+
+const panels = Array.from(document.querySelectorAll('main .tab-panel'));
+const panelIds = panels.map((panel) => panel.id);
 const navItems = document.querySelectorAll('.nav-links a[data-nav]');
 
-const setActive = (id) => {
+// Highlight the nav link of the open tab
+function setActiveNav(id) {
   navItems.forEach((link) => {
-    link.classList.toggle('is-active', link.getAttribute('href') === `#${id}`);
+    const isActive = link.getAttribute('href') === `#${id}`;
+    link.classList.toggle('is-active', isActive);
+    if (isActive) {
+      link.setAttribute('aria-current', 'page');
+    } else {
+      link.removeAttribute('aria-current');
+    }
   });
-};
+}
 
-const observer = new IntersectionObserver(
-  (entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        setActive(entry.target.id);
-      }
-    });
-  },
-  { rootMargin: '-40% 0px -55% 0px' }
-);
+// Load YouTube/Spotify players only when their tab is first opened
+function loadEmbeds(panel) {
+  panel.querySelectorAll('iframe[data-src]').forEach((frame) => {
+    frame.src = frame.dataset.src;
+    frame.removeAttribute('data-src');
+  });
+}
 
-sections.forEach((section) => observer.observe(section));
+function showTab(id, moveFocus = false) {
+  if (!panelIds.includes(id)) id = DEFAULT_TAB;
+
+  panels.forEach((panel) => {
+    panel.hidden = panel.id !== id;
+  });
+
+  const panel = document.getElementById(id);
+  loadEmbeds(panel);
+  setActiveNav(id);
+
+  document.title = id === DEFAULT_TAB
+    ? SITE_TITLE
+    : `${panel.dataset.title} — CW PLAY`;
+
+  window.scrollTo({ top: 0, behavior: 'instant' });
+
+  // Keyboard / screen reader users land on the new tab's heading
+  if (moveFocus) {
+    const heading = panel.querySelector('h1, h2');
+    if (heading) {
+      heading.setAttribute('tabindex', '-1');
+      heading.focus({ preventScroll: true });
+    }
+  }
+}
+
+function tabFromHash() {
+  return decodeURIComponent(window.location.hash.slice(1)) || DEFAULT_TAB;
+}
+
+// Links like href="#channels" change the hash; back/forward buttons work too
+window.addEventListener('hashchange', () => showTab(tabFromHash(), true));
+
+showTab(tabFromHash());
