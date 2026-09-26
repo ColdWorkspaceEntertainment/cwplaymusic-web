@@ -21,6 +21,9 @@
     --text-muted: #8c7a82;
     --border-color: #ffc9c9;
 
+    --youtube: #FF0000;
+    --spotify: #1DB954;
+
     --font-cute: 'Fredoka', sans-serif;
     --font-heading: 'Space Grotesk', sans-serif;
     --smooth-bounce: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -48,9 +51,10 @@ button:focus-visible {
     outline-offset: 3px;
 }
 
-/* Sabit nav bar'ın altında anchor hedeflerinin gizlenmesini önler */
-section[id] {
-    scroll-margin-top: 130px;
+/* Sekme değişince JS başlığa odaklanır; başlıkta çerçeve görünmesin */
+h1:focus,
+h2:focus {
+    outline: none;
 }
 
 /* ---------- Nav ---------- */
@@ -124,6 +128,27 @@ nav {
     cursor: pointer;
     align-items: center;
     justify-content: center;
+}
+
+/* ---------- Sekmeler ---------- */
+
+/* Footer'ın kısa sekmelerde yukarı zıplamaması için */
+main {
+    min-height: calc(100vh - 230px);
+}
+
+.tab-panel[hidden] {
+    display: none;
+}
+
+/* Sekme açılınca kısa bir giriş: neyin değiştiğini gösterir */
+.tab-panel:not([hidden]) {
+    animation: panelIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes panelIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ---------- Hero ---------- */
@@ -228,42 +253,84 @@ h2 {
     margin-top: 3px;
 }
 
-/* ---------- Kanallar ---------- */
+/* ---------- Kanallar (gömülü oynatıcılar) ---------- */
 
-.partner-card {
-    max-width: 700px;
+.channels-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 1050px;
     margin: 0 auto;
+    text-align: left;
+}
+.spotify-card,
+.youtube-card {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+}
+
+.btn-youtube {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--youtube);
+    color: #fff;
+    font-weight: 700;
+    padding: 14px 24px;
+    border-radius: 16px;
+    transition: var(--smooth-bounce);
+}
+.btn-youtube:hover {
+    background: #d90000;
+    transform: translateY(-2px);
+}
+
+.embed-card {
     background: var(--card-bg);
     border: 2px solid var(--border-color);
-    border-radius: 30px;
-    padding: 35px;
+    border-radius: 28px;
+    padding: 18px;
     box-shadow: 0 10px 25px rgba(255, 107, 107, 0.2);
-}
-.social-links {
     display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 14px;
 }
-.social-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    border-radius: 30px;
-    font-weight: 700;
-    color: #fff;
-    transition: var(--smooth-bounce);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-}
-.social-link:hover { transform: translateY(-3px); }
-.social-youtube { background: #FF0000; }
-.social-spotify { background: #1DB954; }
 
-.channel-note {
-    margin-top: 20px;
+.embed-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 4px;
+}
+.embed-head i { font-size: 1.5rem; }
+.embed-head--youtube i { color: var(--youtube); }
+.embed-head--spotify i { color: var(--spotify); }
+.embed-head h3 {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    color: var(--text-primary);
+}
+.embed-head span {
+    margin-left: auto;
     font-size: 0.85rem;
     color: var(--text-muted);
+}
+
+/* Oynatıcı yüklenene kadar görünen yumuşak zemin */
+.embed-frame {
+    background: var(--red-soft);
+    border-radius: 16px;
+    overflow: hidden;
+}
+.embed-frame iframe {
+    display: block;
+    width: 100%;
+    border: 0;
+}
+.embed-frame--spotify iframe {
+    height: 352px;
 }
 
 /* ---------- Butonlar ---------- */
@@ -379,7 +446,6 @@ h2 {
         background: rgba(255, 255, 255, 0.97);
         border: 2px solid var(--border-color);
         border-radius: 20px;
-        padding: 12px;
         box-shadow: 0 10px 25px rgba(255, 107, 107, 0.25);
 
         max-height: 0;
@@ -396,6 +462,8 @@ h2 {
     .nav-links li a { text-align: center; }
 
     .content-section { padding: 55px 8%; }
+
+    .embed-card { padding: 12px; border-radius: 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
