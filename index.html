@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>CW PLAY — Cold Works Production</title>
 <link rel="icon" href="https://i.imgur.com/T8VJxnf.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -35,38 +36,57 @@
 
 <main>
 
-  <section id="welcome" class="hero">
+  <!-- Her section bir sekme. JS aynı anda yalnızca birini gösterir. -->
+
+  <section id="welcome" class="hero tab-panel" data-title="Home">
     <div>
       <i class="fa-solid fa-compact-disc hero-icon"></i>
       <h1>Welcome to CW PLAY!</h1>
       <p>We're the music arm of Cold Works Production. Follow our productions,
          releases, and the sounds we're working on right here.</p>
       <div class="hero-buttons">
-        <a class="btn" href="#channels">Explore Channels</a>
+        <a class="btn" href="#channels">Listen now</a>
         <a class="btn-secondary" href="#about">Learn More</a>
       </div>
     </div>
   </section>
 
-  <section id="channels" class="content-section center-text">
+  <section id="channels" class="content-section center-text tab-panel" data-title="Channels">
     <span class="sub-title">MUSIC</span>
     <h2>Our Channels</h2>
-    <p class="section-lead">Where we share our music and behind-the-scenes content.</p>
+    <p class="section-lead">Listen on Spotify right here, or see all our releases on YouTube.</p>
 
-    <div class="partner-card">
-      <div class="social-links">
-        <a class="social-link social-youtube" href="https://www.youtube.com/@coldworksofficial" target="_blank" rel="noopener">
-          <i class="fa-brands fa-youtube"></i> YouTube
+    <div class="channels-stack">
+      <article class="embed-card youtube-card">
+        <header class="embed-head embed-head--youtube">
+          <i class="fa-brands fa-youtube"></i>
+          <h3>YouTube</h3>
+          <span>Releases</span>
+        </header>
+        <a class="btn-youtube"
+           href="https://www.youtube.com/@coldworksofficial/releases"
+           target="_blank" rel="noopener">
+          <i class="fa-brands fa-youtube"></i> Continue on YouTube
         </a>
-        <a class="social-link social-spotify" href="https://open.spotify.com/intl-tr/artist/7fu2bgzUOr2ktStyRI81wx?si=0oPm8PFhTX2Bo0XWraxmfw" rel="noopener">
-          <i class="fa-brands fa-spotify"></i> Spotify
-        </a>
-      </div>
-      <p class="channel-note">Follow us on both platforms for new releases and updates.</p>
+      </article>
+
+      <article class="embed-card spotify-card">
+        <header class="embed-head embed-head--spotify">
+          <i class="fa-brands fa-spotify"></i>
+          <h3>Spotify</h3>
+          <span>Artist profile</span>
+        </header>
+        <div class="embed-frame embed-frame--spotify">
+          <iframe
+            data-src="https://open.spotify.com/embed/artist/7fu2bgzUOr2ktStyRI81wx?utm_source=generator"
+            title="CW PLAY on Spotify"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+        </div>
+      </article>
     </div>
   </section>
 
-  <section id="about" class="content-section center-text">
+  <section id="about" class="content-section center-text tab-panel" data-title="About">
     <span class="sub-title">ABOUT</span>
     <h2>What is CW PLAY?</h2>
     <p class="section-lead">
@@ -84,7 +104,7 @@
     </div>
   </section>
 
-  <section id="contact" class="content-section center-text">
+  <section id="contact" class="content-section center-text tab-panel" data-title="Contact">
     <span class="sub-title">CONTACT</span>
     <h2>Get In Touch</h2>
     <p class="section-lead">Have an idea, a collaboration proposal, or a question? Write to us, we're reading.</p>
