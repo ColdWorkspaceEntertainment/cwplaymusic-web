@@ -202,7 +202,8 @@ if (dialog && form) {
     try {
       const res = await fetch(ORDER_API, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // text/plain = "simple request": no OPTIONS pre-check, which IIS can block
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
         body: JSON.stringify({
           type: current.type,
           product: current.product.key,
@@ -221,7 +222,8 @@ if (dialog && form) {
         : 'Your order reached us on Discord. We\'ll reply to you there.';
       form.querySelector('.order-body').hidden = true;
       form.querySelector('.order-done').hidden = false;
-    } catch {
+    } catch (err) {
+      console.error('Order request failed:', err);
       setError('Couldn\'t connect. Check your connection and try again.');
     } finally {
       submit.disabled = false;
