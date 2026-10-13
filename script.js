@@ -8,7 +8,7 @@
 const ROOT = new URL('./', document.currentScript.src);
 
 // Order endpoint on Güzel Hosting (PHP). The site itself stays on GitHub Pages.
-const ORDER_API = 'https://api.cwplaymusic.com/order.php';
+const ORDER_API = 'https://medya.cwplaymusic.com/fizzy/order.php';
 
 const STATUS_LABELS = { open: 'Open', full: 'Full' };
 
