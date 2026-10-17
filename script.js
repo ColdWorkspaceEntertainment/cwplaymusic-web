@@ -136,7 +136,7 @@ function renderCatalog(products) {
 // ---------- Order / comment dialog ----------
 const dialog = document.getElementById('orderDialog');
 const form = document.getElementById('orderForm');
-let current = null; // { product, type }
+let current = null; // { product, type, openedAt }
 
 function setError(text) {
   document.getElementById('orderError').textContent = text || '';
@@ -144,7 +144,7 @@ function setError(text) {
 
 function openOrderDialog(product, type) {
   if (!dialog) return;
-  current = { product, type };
+  current = { product, type, openedAt: Date.now() };
   form.reset();
   setError('');
   form.querySelector('.order-body').hidden = false;
@@ -210,6 +210,7 @@ if (dialog && form) {
           username,
           message,
           website: form.website.value, // honeypot
+          elapsed: Date.now() - current.openedAt, // ms since the form was opened (bots fill it instantly)
         }),
       });
       const data = await res.json().catch(() => ({}));
