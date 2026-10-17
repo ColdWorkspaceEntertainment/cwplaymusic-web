@@ -1,0 +1,43 @@
+{
+  "products": [
+    {
+      "key": "priority-listeners",
+      "id": 291,
+      "name": "Priority Listeners – Early Access",
+      "description": "Listen to a preview of new CW PLAY tracks before release. Once your order is approved, the preview is sent to you in DM.",
+      "rules": [
+        "The preview is personal; it can't be shared or re-uploaded.",
+        "Orders are reviewed manually."
+      ],
+      "price": "Free – a short feedback in return",
+      "status": "open",
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "page": "Priority%20Listeners/early-access.html",
+      "featured": true,
+      "icon": "fa-headphones",
+      "image": null,
+      "hue": 320
+    },
+    {
+      "key": "cinema-screening",
+      "id": null,
+      "name": "CW PLAY Cinema Screening",
+      "description": "Have your film or video shown on CW PLAY Cinema.",
+      "rules": [
+        "Orders are reviewed manually."
+      ],
+      "price": null,
+      "status": "open",
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "page": "CW%20PLAY%20Cinema/series.html",
+      "featured": false,
+      "icon": "fa-film",
+      "image": null,
+      "hue": 205
+    }
+  ]
+}
