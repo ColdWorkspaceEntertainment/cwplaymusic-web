@@ -198,18 +198,16 @@ function renderLoginRow() {
   } else {
     const inBtn = el('a', 'btn btn-ghost', 'Log in with Discord');
     inBtn.href = LOGIN_URL;
-    loginRow.append(inBtn, el('small', null, 'Optional. Verifies your username.'));
+    loginRow.append(inBtn, el('small', null, 'Required to send an order or comment.'));
   }
 }
 
 function applyLoginToField() {
   const login = readLogin();
-  if (login) {
-    form.username.value = login.u;
-    form.username.readOnly = true;
-  } else {
-    form.username.readOnly = false;
-  }
+  form.username.readOnly = true; // the verified Discord account is used, so the field is never typed in
+  form.username.value = login ? login.u : '';
+  form.username.placeholder = login ? '' : 'Log in with Discord first';
+  document.getElementById('orderSubmit').disabled = !login;
 }
 
 function setError(text) {
@@ -251,6 +249,10 @@ if (dialog && form) {
     e.preventDefault();
     if (!current) return;
     setError('');
+    if (!readLogin()) {
+      setError('Log in with Discord to send this.');
+      return;
+    }
 
     const username = form.username.value.trim().toLowerCase();
     const message = form.message.value.trim();
@@ -309,7 +311,7 @@ if (dialog && form) {
       console.error('Order request failed:', err);
       setError('Couldn\'t connect. Check your connection and try again.');
     } finally {
-      submit.disabled = false;
+      submit.disabled = !readLogin();
       submit.textContent = label;
     }
   });
