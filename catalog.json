@@ -30,7 +30,7 @@
       ],
       "price": null,
       "status": "open",
-      "rating": null,
+      "rating": 5,
       "reviews": 2,
       "orders": 3,
       "page": "CW%20PLAY%20Cinema/series.html",
