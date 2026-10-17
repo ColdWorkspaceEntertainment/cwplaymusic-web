@@ -10,6 +10,43 @@ const ROOT = new URL('./', document.currentScript.src);
 // Order endpoint on Güzel Hosting (PHP). The site itself stays on GitHub Pages.
 const ORDER_API = 'https://medya.cwplaymusic.com/fizzy/order.php';
 
+// "Log in with Discord": verifies the username so orders can't be sent under someone else's name.
+const LOGIN_URL = 'https://medya.cwplaymusic.com/fizzy/login.php';
+const LOGIN_KEY = 'cw_discord_login';
+
+function decodePayload(token) {
+  const p = token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+  return JSON.parse(atob(p + '='.repeat((4 - (p.length % 4)) % 4)));
+}
+
+// The server sends the visitor back as  /#store&login=TOKEN . Keep the token for this tab only and clean the address bar.
+(function captureLogin() {
+  const m = window.location.hash.match(/[#&]login=([A-Za-z0-9_.-]+)/);
+  if (!m) return;
+  try {
+    const d = decodePayload(m[1]);
+    if (d && d.u && d.exp) {
+      sessionStorage.setItem(LOGIN_KEY, JSON.stringify({ token: m[1], u: d.u, exp: d.exp }));
+    }
+  } catch (err) { /* invalid token: ignore */ }
+  history.replaceState(null, '', window.location.pathname + window.location.search + '#store');
+})();
+
+function readLogin() {
+  try {
+    const d = JSON.parse(sessionStorage.getItem(LOGIN_KEY) || 'null');
+    if (!d || !d.token) return null;
+    if (d.exp * 1000 < Date.now()) { sessionStorage.removeItem(LOGIN_KEY); return null; }
+    return d;
+  } catch (err) {
+    return null;
+  }
+}
+
+const loginStyle = document.createElement('style');
+loginStyle.textContent = '.login-row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:.9rem}.login-row small{opacity:.75}';
+document.head.append(loginStyle);
+
 const STATUS_LABELS = { open: 'Open', full: 'Full' };
 
 const STATUS_NOTES = {
@@ -138,6 +175,43 @@ const dialog = document.getElementById('orderDialog');
 const form = document.getElementById('orderForm');
 let current = null; // { product, type, openedAt }
 
+let loginRow = null;
+
+function renderLoginRow() {
+  if (!form) return;
+  if (!loginRow) {
+    loginRow = el('div', 'login-row');
+    form.querySelector('label.field').before(loginRow);
+  }
+  loginRow.replaceChildren();
+  const login = readLogin();
+  if (login) {
+    loginRow.append(el('span', 'login-who', `Signed in as ${login.u}`));
+    const out = el('button', 'btn btn-ghost', 'Log out');
+    out.type = 'button';
+    out.addEventListener('click', () => {
+      sessionStorage.removeItem(LOGIN_KEY);
+      renderLoginRow();
+      applyLoginToField();
+    });
+    loginRow.append(out);
+  } else {
+    const inBtn = el('a', 'btn btn-ghost', 'Log in with Discord');
+    inBtn.href = LOGIN_URL;
+    loginRow.append(inBtn, el('small', null, 'Optional. Verifies your username.'));
+  }
+}
+
+function applyLoginToField() {
+  const login = readLogin();
+  if (login) {
+    form.username.value = login.u;
+    form.username.readOnly = true;
+  } else {
+    form.username.readOnly = false;
+  }
+}
+
 function setError(text) {
   document.getElementById('orderError').textContent = text || '';
 }
@@ -147,6 +221,8 @@ function openOrderDialog(product, type) {
   current = { product, type, openedAt: Date.now() };
   form.reset();
   setError('');
+  renderLoginRow();
+  applyLoginToField();
   form.querySelector('.order-body').hidden = false;
   form.querySelector('.order-done').hidden = true;
 
@@ -210,11 +286,17 @@ if (dialog && form) {
           username,
           message,
           website: form.website.value, // honeypot
+          token: (readLogin() || {}).token || '', // Discord login (optional)
           elapsed: Date.now() - current.openedAt, // ms since the form was opened (bots fill it instantly)
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
+        if (data.login) { // login expired or required
+          sessionStorage.removeItem(LOGIN_KEY);
+          renderLoginRow();
+          applyLoginToField();
+        }
         setError(data.error || 'Your order couldn\'t be sent. Try again in a few minutes.');
         return;
       }
@@ -328,7 +410,7 @@ if (panels.length) {
   }
 
   function tabFromHash() {
-    return decodeURIComponent(window.location.hash.slice(1)) || DEFAULT_TAB;
+    return decodeURIComponent(window.location.hash.slice(1)).split('&')[0] || DEFAULT_TAB;
   }
 
   window.addEventListener('hashchange', () => showTab(tabFromHash(), true));
