@@ -74,6 +74,24 @@
       "icon": "fa-mobile-alt",
       "image": null,
       "hue": 270
+    }, 
+    {
+      "key": "computer-wallpaper-art",
+      "id": 305,
+      "name": "Computer Wallpaper / Lockscreen Art",
+      "description": "Request a custom, high-resolution landscape computer wallpaper featuring the character, aesthetic, or concept of your choice.",
+      "rules": [
+        "Orders are reviewed manually."
+      ],
+      "credits": 3310,
+      "status": "open",
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "featured": false,
+      "icon": "fa-monitor-alt",
+      "image": null,
+      "hue": 270
     }
   ]
 }
