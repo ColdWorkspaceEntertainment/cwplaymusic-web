@@ -39,5 +39,22 @@
       "image": null,
       "hue": 205
     }
+    {
+      "key": "personal-avatar",
+      "id": 302,
+      "name": "Personal Avatar / Chibi Drawing",
+      "description": "Get a custom anime-style personal avatar or chibi illustration created specifically for you! Send your request details after ordering.",
+      "rules": [
+        "Orders are reviewed manually."
+      ],
+      "credits": 1200
+      "status": "open",
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "featured": false,
+      "icon": "fa-film",
+      "image": null,
+      "hue": 203
   ]
 }
