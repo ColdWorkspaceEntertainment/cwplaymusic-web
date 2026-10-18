@@ -38,7 +38,7 @@
       "icon": "fa-film",
       "image": null,
       "hue": 205
-    }
+    },
     {
       "key": "personal-avatar",
       "id": 302,
@@ -47,14 +47,15 @@
       "rules": [
         "Orders are reviewed manually."
       ],
-      "credits": 1200
+      "credits": 1200,
       "status": "open",
       "rating": null,
       "reviews": 0,
       "orders": 0,
       "featured": false,
-      "icon": "fa-film",
+      "icon": "fa-pencil",
       "image": null,
       "hue": 203
+    }
   ]
 }
