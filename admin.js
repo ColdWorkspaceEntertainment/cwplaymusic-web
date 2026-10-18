@@ -51,6 +51,11 @@
 
   // Availability + notice shown on status.html and in the banner on every page
   function statusSection() {
+    // Needs the status helpers in script.js. If an older script.js is cached, only this section is skipped.
+    if (typeof fetchStatus !== 'function' || typeof STATUS_API === 'undefined') {
+      return section('Your status', el('p', null,
+        'Status settings couldn\'t load because an older version of the site is cached. Refresh the page with Ctrl+F5.'));
+    }
     const form = el('form', 'wallet-form adm-status');
     form.noValidate = true;
 
@@ -238,9 +243,15 @@
       }
       return;
     }
+    let statusPart;
+    try {
+      statusPart = statusSection();
+    } catch (err) {
+      statusPart = section('Your status', el('p', null, 'Status settings couldn\'t load. Refresh the page to try again.'));
+    }
     root.replaceChildren(
       header(data.pending.length),
-      statusSection(),
+      statusPart,
       section('Waiting for approval', pendingList(data.pending)),
       section('Balances', balanceList(data.balances)),
       section('Recent decisions', decidedList(data.decided)),
