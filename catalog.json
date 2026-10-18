@@ -56,7 +56,7 @@
       "icon": "fa-pencil",
       "image": null,
       "hue": 203
-    }
+    },
     {
       "key": "phone-wallpaper-art",
       "id": 305,
@@ -74,6 +74,6 @@
       "icon": "fa-mobile-alt",
       "image": null,
       "hue": 270
-   }
+    }
   ]
 }
