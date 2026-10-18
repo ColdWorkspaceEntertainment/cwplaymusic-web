@@ -32,7 +32,7 @@
     const box = el('div', 'pd-buybox wallet-login');
     box.append(
       el('p', 'pd-price', 'Log in to see your wallet'),
-      el('p', 'pd-note', 'Your CW Credits are tied to your Discord account. We only see your Discord ID and username.'),
+      el('p', 'pd-note', 'Log in with Discord or a CW PLAY account. Your CW Credits are tied to the account you log in with.'),
       loginLink(),
     );
     root.append(box);
@@ -40,7 +40,7 @@
 
   function userRow(name, isOwner) {
     const row = el('p', 'wallet-user');
-    row.append(icon('fa-brands fa-discord'), el('span', null, `Logged in as ${name}`));
+    row.append(icon('fa-solid fa-circle-user'), el('span', null, `Logged in as ${name}`));
     const out = el('button', null, 'Log out');
     out.type = 'button';
     out.addEventListener('click', () => {

@@ -546,6 +546,17 @@
 .adm-status { max-width: 560px; }
 .adm-link { align-self: center; color: #fff; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 
+/* ---------- Login page (account.html) ---------- */
+.acc-box { display: flex; flex-direction: column; gap: 0.9rem; }
+.acc-narrow { max-width: 480px; }
+.acc-discord { background: #5865f2; }
+.acc-discord:hover { background: #4752c4; box-shadow: 0 0 0 2px var(--s-bg-2), 0 0 0 4px #fff; }
+.acc-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; font-size: 0.9rem; }
+.acc-link { color: #fff; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.shop .check { display: flex; gap: 0.6rem; align-items: flex-start; color: var(--s-muted); font-size: 0.9rem; font-weight: 400; flex-direction: row; }
+.shop .check input { width: 18px; height: 18px; min-height: 0; margin-top: 2px; accent-color: var(--s-bright); flex-shrink: 0; }
+.shop .check a { color: #fff; font-weight: 600; text-decoration: underline; }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }

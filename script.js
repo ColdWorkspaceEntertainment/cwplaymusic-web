@@ -10,10 +10,11 @@ const ROOT = new URL('./', document.currentScript.src);
 // Order endpoint on Güzel Hosting (PHP). The site itself stays on GitHub Pages.
 const ORDER_API = 'https://medya.cwplaymusic.com/fizzy/order.php';
 
-// "Log in with Discord": verifies the username so orders can't be sent under someone else's name.
+// Login (Discord or a CW PLAY account): verifies who is ordering, so orders can't be sent under someone else's name.
 const LOGIN_URL = 'https://medya.cwplaymusic.com/fizzy/login.php';
 const CREDITS_API = 'https://medya.cwplaymusic.com/fizzy/credits.php';
 const STATUS_API = 'https://medya.cwplaymusic.com/fizzy/status.php';
+const ACCOUNT_API = 'https://medya.cwplaymusic.com/fizzy/account.php';
 const LOGIN_KEY = 'cw_discord_login';
 const RETURN_KEY = 'cw_login_return'; // the product page to come back to after logging in
 
@@ -23,18 +24,38 @@ function decodePayload(token) {
 }
 
 // The server sends the visitor back as  /#store&login=TOKEN . Keep the token for this tab only and clean the address bar.
+/** Stores a login token (from Discord or a CW PLAY account). Returns false if it can't be read. */
+function saveLogin(token) {
+  try {
+    const d = decodePayload(token);
+    if (d && d.u && d.exp) {
+      sessionStorage.setItem(LOGIN_KEY, JSON.stringify({ token, u: d.u, exp: d.exp }));
+      return true;
+    }
+  } catch (err) { /* invalid token: ignore */ }
+  return false;
+}
+
+/** Where to go after logging in: the page the visitor started from, if it's one of ours. */
+function takeReturnPath() {
+  const back = sessionStorage.getItem(RETURN_KEY);
+  sessionStorage.removeItem(RETURN_KEY);
+  return back && back.startsWith('/') && !back.startsWith('//') && /(product|wallet|admin|status)\.html/.test(back) ? back : null;
+}
+
+/** Opens the login page (Discord or CW PLAY account) and remembers this page to come back to. */
+function rememberReturn() {
+  if (!/account\.html/.test(window.location.pathname)) {
+    sessionStorage.setItem(RETURN_KEY, window.location.pathname + window.location.search);
+  }
+}
+
 (function captureLogin() {
   const m = window.location.hash.match(/[#&]login=([A-Za-z0-9_.-]+)/);
   if (!m) return;
-  try {
-    const d = decodePayload(m[1]);
-    if (d && d.u && d.exp) {
-      sessionStorage.setItem(LOGIN_KEY, JSON.stringify({ token: m[1], u: d.u, exp: d.exp }));
-    }
-  } catch (err) { /* invalid token: ignore */ }
-  const back = sessionStorage.getItem(RETURN_KEY);
-  sessionStorage.removeItem(RETURN_KEY);
-  if (back && back.startsWith('/') && !back.startsWith('//') && /(product|wallet|admin)\.html/.test(back)) {
+  saveLogin(m[1]);
+  const back = takeReturnPath();
+  if (back) {
     window.location.replace(back);
     return;
   }
@@ -139,11 +160,11 @@ async function creditsCall(action, extra = {}) {
     return { ok: false, status: 0, data: { error: 'Couldn\'t connect. Check your connection and try again.' } };
   }
 }
-function loginLink(label = 'Log in with Discord') {
+function loginLink(label = 'Log in') {
   const a = el('a', 'shop-btn', label);
-  a.href = LOGIN_URL;
-  a.prepend(icon('fa-brands fa-discord'));
-  a.addEventListener('click', () => sessionStorage.setItem(RETURN_KEY, window.location.pathname + window.location.search));
+  a.href = new URL('account.html', ROOT).href;
+  a.prepend(icon('fa-solid fa-right-to-bracket'));
+  a.addEventListener('click', rememberReturn);
   return a;
 }
 
@@ -216,6 +237,14 @@ async function showStatusBanner() {
   main.prepend(bar);
 }
 showStatusBanner();
+
+// A short message left by the login page (e.g. "Logged in as …"), shown once on the next page
+(function showPendingToast() {
+  const text = sessionStorage.getItem('cw_toast');
+  if (!text) return;
+  sessionStorage.removeItem('cw_toast');
+  setTimeout(() => showToast(text), 300);
+})();
 
 // ---------- Store: shared pieces ----------
 const STORE = { query: '', filter: 'all', sort: 'featured' };
@@ -482,7 +511,7 @@ function renderProductPage() {
 
   const hint = el('p', 'pd-note');
   hint.append(icon('fa-brands fa-discord'),
-    el('span', null, 'Log in with Discord to order or comment. Orders are reviewed by hand and answered on Discord.'));
+    el('span', null, 'Log in with Discord or a CW PLAY account to order or comment. Orders are reviewed by hand and answered on Discord or by email.'));
   buy.append(hint);
   if (credits) {
     const wallet = el('p', 'pd-note');
@@ -558,20 +587,18 @@ function renderLoginRow() {
     });
     loginRow.append(out);
   } else {
-    const inBtn = el('a', 'btn btn-ghost', 'Log in with Discord');
-    inBtn.href = LOGIN_URL;
-    inBtn.addEventListener('click', () => {
-      sessionStorage.setItem(RETURN_KEY, window.location.pathname + window.location.search);
-    });
-    loginRow.append(inBtn, el('small', null, 'Required to send an order or comment.'));
+    const inBtn = el('a', 'btn btn-ghost', 'Log in');
+    inBtn.href = new URL('account.html', ROOT).href;
+    inBtn.addEventListener('click', rememberReturn);
+    loginRow.append(inBtn, el('small', null, 'With Discord or a CW PLAY account. Required to send an order or comment.'));
   }
 }
 
 function applyLoginToField() {
   const login = readLogin();
-  form.username.readOnly = true; // the verified Discord account is used, so the field is never typed in
+  form.username.readOnly = true; // the logged-in account is used, so the field is never typed in
   form.username.value = login ? login.u : '';
-  form.username.placeholder = login ? '' : 'Log in with Discord first';
+  form.username.placeholder = login ? '' : 'Log in first';
   document.getElementById('orderSubmit').disabled = !login;
 }
 
@@ -625,7 +652,7 @@ if (dialog && form) {
     if (!current) return;
     setError('');
     if (!readLogin()) {
-      setError('Log in with Discord to send this.');
+      setError('Log in to send this.');
       return;
     }
 
