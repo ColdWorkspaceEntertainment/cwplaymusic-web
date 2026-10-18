@@ -9,7 +9,7 @@
         "The preview is personal; it can't be shared or re-uploaded.",
         "Orders are reviewed manually."
       ],
-      "price": "Free – a short feedback in return",
+      "credits": 5350,
       "status": "open",
       "rating": 5,
       "reviews": 1,
@@ -28,7 +28,7 @@
       "rules": [
         "Orders are reviewed manually."
       ],
-      "price": null,
+      "credits": 200,
       "status": "open",
       "rating": 5,
       "reviews": 2,
