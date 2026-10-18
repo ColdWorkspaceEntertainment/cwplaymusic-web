@@ -57,5 +57,23 @@
       "image": null,
       "hue": 203
     }
+    {
+      "key": "phone-wallpaper-art",
+      "id": 305,
+      "name": "Phone Wallpaper / Lockscreen Art",
+      "description": "Request a custom, high-resolution vertical mobile wallpaper featuring your preferred character, aesthetic, or concept.",
+      "rules": [
+        "Orders are reviewed manually."
+      ],
+      "credits": 3000,
+      "status": "open",
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "featured": false,
+      "icon": "fa-mobile-alt",
+      "image": null,
+      "hue": 270
+   }
   ]
 }
