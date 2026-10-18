@@ -74,7 +74,7 @@
       "icon": "fa-mobile-alt",
       "image": null,
       "hue": 270
-    }, 
+    },
     {
       "key": "computer-wallpaper-art",
       "id": 305,
@@ -92,6 +92,44 @@
       "icon": "fa-desktop",
       "image": null,
       "hue": 270
+    },
+    {
+      "key": "video-editing",
+      "id": 307,
+      "name": "Video Editing & Montage Support",
+      "description": "Send your raw clips and get back a clean, edited video. Cutting and trimming, smooth transitions, simple text and titles, basic color correction and audio balancing, all put together into one finished video.",
+      "rules": [
+        "Final video up to 3 minutes long.",
+        "1 round of changes is included."
+      ],
+      "credits": 2500,
+      "status": "open",
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "featured": false,
+      "icon": "fa-scissors",
+      "image": null,
+      "hue": 25
+    },
+    {
+      "key": "subtitle-setup",
+      "id": 308,
+      "name": "Subtitle Setup",
+      "description": "Clear, well-timed subtitles for your video. Every line is typed and synced by hand, so they're easy to read and match the speech. Get them burned into the video, as a separate subtitle file (.srt) you can upload to YouTube, or both.",
+      "rules": [
+        "Videos up to 10 minutes long.",
+        "Translation isn't included."
+      ],
+      "credits": 1500,
+      "status": "open",
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "featured": false,
+      "icon": "fa-closed-captioning",
+      "image": null,
+      "hue": 175
     }
   ]
 }
