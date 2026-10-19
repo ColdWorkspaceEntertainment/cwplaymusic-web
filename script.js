@@ -246,6 +246,41 @@ showStatusBanner();
   setTimeout(() => showToast(text), 300);
 })();
 
+// ---------- Cart (cart.html). Only products sold for CW Credits can be added. ----------
+const CART_KEY = 'cw_cart';
+const CART_MAX = 10;
+
+function readCart() {
+  try {
+    const list = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+    return Array.isArray(list) ? list.filter((k) => typeof k === 'string').slice(0, CART_MAX) : [];
+  } catch (err) {
+    return [];
+  }
+}
+function writeCart(list) {
+  try { localStorage.setItem(CART_KEY, JSON.stringify(list.slice(0, CART_MAX))); } catch (err) { /* storage off */ }
+  updateCartBadge();
+}
+/** Returns 'added', 'already' or 'full'. */
+function addToCart(key) {
+  const list = readCart();
+  if (list.includes(key)) return 'already';
+  if (list.length >= CART_MAX) return 'full';
+  list.push(key);
+  writeCart(list);
+  return 'added';
+}
+function updateCartBadge() {
+  const n = readCart().length;
+  document.querySelectorAll('.cart-count').forEach((b) => {
+    b.textContent = n ? String(n) : '';
+    b.hidden = !n;
+  });
+}
+updateCartBadge();
+window.addEventListener('storage', (e) => { if (e.key === CART_KEY) updateCartBadge(); });
+
 // ---------- Store: shared pieces ----------
 const STORE = { query: '', filter: 'all', sort: 'featured' };
 
@@ -507,6 +542,23 @@ function renderProductPage() {
     }
   });
   actions.append(orderBtn, commentBtn, shareBtn);
+  if (credits && isOpen) {
+    const cartBtn = el('button', 'shop-btn shop-btn--ghost', readCart().includes(p.key) ? 'In your cart' : 'Add to cart');
+    cartBtn.type = 'button';
+    cartBtn.prepend(icon('fa-solid fa-cart-plus'));
+    cartBtn.addEventListener('click', () => {
+      const r = addToCart(p.key);
+      if (r === 'full') return showToast(`Your cart can hold up to ${CART_MAX} items.`);
+      cartBtn.textContent = 'In your cart';
+      cartBtn.prepend(icon('fa-solid fa-cart-plus'));
+      const go = r === 'added' ? 'Added to your cart.' : 'It\'s already in your cart.';
+      showToast(go);
+    });
+    const viewCart = el('a', 'shop-btn shop-btn--ghost', 'View cart');
+    viewCart.href = new URL('cart.html', ROOT).href;
+    viewCart.prepend(icon('fa-solid fa-cart-shopping'));
+    actions.append(cartBtn, viewCart);
+  }
   buy.append(actions);
 
   const hint = el('p', 'pd-note');

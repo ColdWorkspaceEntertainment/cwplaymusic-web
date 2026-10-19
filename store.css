@@ -557,6 +557,15 @@
 .shop .check input { width: 18px; height: 18px; min-height: 0; margin-top: 2px; accent-color: var(--s-bright); flex-shrink: 0; }
 .shop .check a { color: #fff; font-weight: 600; text-decoration: underline; }
 
+/* ---------- Cart (cart.html) ---------- */
+.cart-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1.4rem; align-items: start; }
+.cart-name { color: #fff; font-weight: 600; text-decoration: none; }
+.cart-name:hover { text-decoration: underline; }
+.cart-items .adm-adjust .shop-btn { min-height: 38px; padding: 0.4rem 1rem; }
+.cart-empty { max-width: 480px; align-items: flex-start; }
+.cart-empty > i { font-size: 2rem; color: var(--s-bright); }
+@media (max-width: 860px) { .cart-grid { grid-template-columns: 1fr; } }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }

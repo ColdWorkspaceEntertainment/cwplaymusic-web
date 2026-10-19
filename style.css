@@ -807,6 +807,22 @@ a.ticket:hover {
 .status-banner--down { background: var(--full-bg); color: var(--full-fg); }
 .status-banner a { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 
+/* Cart count in the menu */
+.cart-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--white);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.cart-count[hidden] { display: none; }
+
 /* ---------- Footer: dark band ---------- */
 
 .site-footer {
