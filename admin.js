@@ -121,6 +121,38 @@
     return section('Your status', form);
   }
 
+  // Sends a test email to MAIL_TO; on failure shows the real reason from the mail server
+  function emailSection() {
+    const box = el('div', 'adm-status');
+    const btn = el('button', 'shop-btn', 'Send test email');
+    btn.type = 'button';
+    btn.prepend(icon('fa-solid fa-envelope'));
+    const result = el('div', 'adm-mail-result');
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      result.replaceChildren(el('p', 'w-sub', 'Sending…'));
+      const { ok, data } = await creditsCall('admin_mail_test');
+      btn.disabled = false;
+      if (ok) {
+        result.replaceChildren(el('p', 'st-state st-state--ok', 'Sent. Check your Gmail (and the spam folder).'));
+        return;
+      }
+      const err = el('pre', 'adm-mail-error', data.error || 'Unknown error');
+      result.replaceChildren(el('p', 'st-state st-state--down', 'Email didn\'t send. Reason:'), err);
+      if (data.settings) {
+        const list = el('ul', 'wallet-list');
+        Object.entries(data.settings).forEach(([k, v]) => {
+          const li = el('li');
+          li.append(el('span', null, k), el('span', 'w-amount', String(v)));
+          list.append(li);
+        });
+        result.append(list);
+      }
+    });
+    box.append(el('p', 'w-sub', 'Sends a test email to the order address in config.php.'), btn, result);
+    return section('Email', box);
+  }
+
   function pendingList(items) {
     if (!items.length) return el('p', null, 'Nothing to review right now.');
     const list = el('ul', 'wallet-list');
@@ -252,6 +284,7 @@
     root.replaceChildren(
       header(data.pending.length),
       statusPart,
+      emailSection(),
       section('Waiting for approval', pendingList(data.pending)),
       section('Balances', balanceList(data.balances)),
       section('Recent decisions', decidedList(data.decided)),

@@ -566,6 +566,9 @@
 .cart-empty > i { font-size: 2rem; color: var(--s-bright); }
 @media (max-width: 860px) { .cart-grid { grid-template-columns: 1fr; } }
 
+.adm-mail-result { margin-top: 1rem; display: grid; gap: 0.6rem; }
+.adm-mail-error { margin: 0; padding: 0.9rem 1rem; border-radius: 12px; background: rgba(0, 0, 0, 0.35); color: #ffd1c9; font-size: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow: auto; }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }
