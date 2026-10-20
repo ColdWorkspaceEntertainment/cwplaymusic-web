@@ -163,6 +163,43 @@
     return li;
   }
 
+  const day = (ts) => new Date(ts * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  function subItem(x) {
+    const li = el('li');
+    const main = el('div', 'w-main');
+    const name = el('a', 'cart-name', x.name);
+    name.href = new URL(`product.html?item=${encodeURIComponent(x.key)}`, ROOT).href;
+    const price = `${fmtCredits(x.price)} CW Credits / month`;
+    const line = {
+      active: `Renews on ${day(x.next_due)} · ${price}`,
+      grace: `Payment due: add CW Credits before ${when(x.grace_until)} or it will be cancelled · ${price}`,
+      cancelling: `Cancelled · active until ${day(x.next_due)}`,
+      cancelled: x.reason === 'unpaid' ? 'Cancelled because it couldn\'t be paid' : 'Ended',
+    }[x.status] || price;
+    main.append(name, el('span', 'w-sub', line));
+    const chip = { active: ['approved', 'Active'], grace: ['pending', 'Payment due'], cancelling: ['pending', 'Ending'], cancelled: ['rejected', 'Ended'] }[x.status] || ['pending', x.status];
+    const right = el('div', 'adm-actions');
+    right.append(el('span', `w-status w-status--${chip[0]}`, chip[1]));
+    if (x.status === 'active' || x.status === 'grace') {
+      const cancel = el('button', 'shop-btn shop-btn--ghost', 'Cancel');
+      cancel.type = 'button';
+      cancel.addEventListener('click', async () => {
+        const msg = x.status === 'active'
+          ? `Cancel ${x.name}? It stays active until ${day(x.next_due)} and won't renew.`
+          : `Cancel ${x.name} now?`;
+        if (!window.confirm(msg)) return;
+        cancel.disabled = true;
+        const { ok, data } = await creditsCall('cancel_sub', { id: x.id });
+        showToast(ok ? 'Subscription cancelled.' : (data.error || 'Couldn\'t cancel. Try again.'));
+        render();
+      });
+      right.append(cancel);
+    }
+    li.append(main, right);
+    return li;
+  }
+
   async function render() {
     root.replaceChildren(header());
     if (!readLogin()) {
@@ -182,9 +219,20 @@
     const pending = (data.requests || []).find((r) => r.status === 'pending');
     const grid = el('div', 'wallet-grid');
     grid.append(balanceBox(data.balance), requestBox(pending));
+    const subs = data.subs || [];
+    const due = subs.filter((x) => x.status === 'grace');
+    if (due.length) {
+      const warn = el('div', 'st-overall st-overall--down');
+      const t = el('div');
+      t.append(el('p', 'st-overall-title', 'A subscription payment is due'),
+        el('p', 'st-overall-text', due.map((x) => `${x.name}: ${fmtCredits(x.price)} CW Credits before ${when(x.grace_until)}`).join(' · ')));
+      warn.append(icon('fa-solid fa-triangle-exclamation'), t);
+      root.append(warn);
+    }
     root.append(
       userRow(data.user, data.owner),
       grid,
+      ...(subs.length ? [listSection('Subscriptions', subs, '', subItem)] : []),
       listSection('Your requests', data.requests || [], 'You haven\'t requested any CW Credits yet.', requestItem),
       listSection('Activity', data.history || [], 'No activity yet.', historyItem),
     );

@@ -143,7 +143,7 @@ function fmtCredits(n) {
 }
 function priceLabel(p) {
   const c = creditPrice(p);
-  return c ? `${fmtCredits(c)} CW Credits` : (p.price || 'Price on request');
+  return c ? `${fmtCredits(c)} CW Credits${p.subscription ? ' / month' : ''}` : (p.price || 'Price on request');
 }
 async function creditsCall(action, extra = {}) {
   const login = readLogin();
@@ -280,6 +280,41 @@ function updateCartBadge() {
 }
 updateCartBadge();
 window.addEventListener('storage', (e) => { if (e.key === CART_KEY) updateCartBadge(); });
+
+// ---------- Subscriptions (products with "subscription": "monthly" in catalog.json) ----------
+function setButton(btn, text, iconClass) {
+  btn.textContent = text;
+  btn.prepend(icon(iconClass));
+}
+async function setupSubscribe(btn, p) {
+  btn.addEventListener('click', async () => {
+    if (!readLogin()) {
+      rememberReturn();
+      window.location.href = new URL('account.html', ROOT).href;
+      return;
+    }
+    const price = fmtCredits(creditPrice(p));
+    if (!window.confirm(`Subscribe to ${p.name} for ${price} CW Credits a month?\n\nThe first month is paid now from your balance. It renews every 30 days; you can cancel any time in your wallet.`)) return;
+    btn.disabled = true;
+    const { ok, data } = await creditsCall('subscribe', { product: p.key });
+    if (ok) {
+      const next = new Date(data.sub.next_due * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      showToast(data.resumed ? 'Your subscription continues.' : `Subscribed! Next payment on ${next}.`);
+      setButton(btn, 'Subscribed', 'fa-solid fa-check');
+      return;
+    }
+    showToast(data.error || 'Couldn\'t subscribe. Try again.');
+    btn.disabled = false;
+  });
+  if (readLogin()) {
+    const { ok, data } = await creditsCall('wallet');
+    const mine = ok && (data.subs || []).find((x) => x.key === p.key && ['active', 'grace'].includes(x.status));
+    if (mine) {
+      setButton(btn, mine.status === 'grace' ? 'Payment due' : 'Subscribed', mine.status === 'grace' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-check');
+      btn.disabled = true;
+    }
+  }
+}
 
 // ---------- Store: shared pieces ----------
 const STORE = { query: '', filter: 'all', sort: 'featured' };
@@ -513,10 +548,12 @@ function renderProductPage() {
 
   const actions = el('div', 'pd-actions');
   const credits = creditPrice(p);
-  const orderBtn = el('button', 'shop-btn', isOpen ? (credits ? 'Buy with CW Credits' : 'Order') : 'Full');
+  const isSub = !!(credits && p.subscription);
+  const orderBtn = el('button', 'shop-btn', isOpen ? (isSub ? 'Subscribe' : credits ? 'Buy with CW Credits' : 'Order') : 'Full');
   orderBtn.type = 'button';
-  orderBtn.prepend(icon(credits ? 'fa-solid fa-coins' : 'fa-solid fa-bag-shopping'));
-  if (isOpen) orderBtn.addEventListener('click', () => openOrderDialog(p, credits ? 'buy' : 'order'));
+  orderBtn.prepend(icon(isSub ? 'fa-solid fa-rotate' : credits ? 'fa-solid fa-coins' : 'fa-solid fa-bag-shopping'));
+  if (isOpen && isSub) setupSubscribe(orderBtn, p);
+  else if (isOpen) orderBtn.addEventListener('click', () => openOrderDialog(p, credits ? 'buy' : 'order'));
   else orderBtn.disabled = true;
 
   const commentBtn = el('button', 'shop-btn shop-btn--ghost', 'Comment');
@@ -542,7 +579,7 @@ function renderProductPage() {
     }
   });
   actions.append(orderBtn, commentBtn, shareBtn);
-  if (credits && isOpen) {
+  if (credits && isOpen && !isSub) {
     const cartBtn = el('button', 'shop-btn shop-btn--ghost', readCart().includes(p.key) ? 'In your cart' : 'Add to cart');
     cartBtn.type = 'button';
     cartBtn.prepend(icon('fa-solid fa-cart-plus'));
@@ -565,6 +602,12 @@ function renderProductPage() {
   hint.append(icon('fa-brands fa-discord'),
     el('span', null, 'Log in with Discord or a CW PLAY account to order or comment. Orders are reviewed by hand and answered on Discord or by email.'));
   buy.append(hint);
+  if (isSub) {
+    const subNote = el('p', 'pd-note');
+    subNote.append(icon('fa-solid fa-rotate'), el('span', null,
+      'Renews every 30 days from your CW Credits. If your balance is too low, you have 24 hours to top up before it\'s cancelled. Cancel any time in your wallet.'));
+    buy.append(subNote);
+  }
   if (credits) {
     const wallet = el('p', 'pd-note');
     const link = el('a', null, 'Open your wallet');

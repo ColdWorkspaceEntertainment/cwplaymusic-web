@@ -221,6 +221,38 @@
     return list;
   }
 
+  function subsList(items) {
+    if (!items.length) return el('p', null, 'No subscriptions yet.');
+    const list = el('ul', 'wallet-list');
+    items.forEach((x) => {
+      const li = el('li');
+      const main = el('div', 'w-main');
+      const info = {
+        active: `Next payment ${when(x.next_due)}`,
+        grace: `Payment due before ${when(x.grace_until)}`,
+        cancelling: `Cancelled by user · ends ${when(x.next_due)}`,
+        cancelled: `Ended ${x.ended ? when(x.ended) : ''}${x.reason === 'unpaid' ? ' (not paid)' : x.reason === 'admin' ? ' (by you)' : ''}`,
+      }[x.status] || x.status;
+      main.append(el('span', null, `${x.name} · ${x.u}`), el('span', 'w-sub', `${x.uid} · ${fmtCredits(x.price)} CW Credits / month · ${info}`));
+      const chip = { active: ['approved', 'Active'], grace: ['pending', 'Payment due'], cancelling: ['pending', 'Ending'], cancelled: ['rejected', 'Ended'] }[x.status];
+      const right = el('div', 'adm-actions');
+      right.append(el('span', `w-status w-status--${chip ? chip[0] : 'pending'}`, chip ? chip[1] : x.status));
+      if (x.status !== 'cancelled') {
+        const stop = el('button', 'shop-btn shop-btn--ghost', 'Cancel');
+        stop.type = 'button';
+        stop.addEventListener('click', () => {
+          if (window.confirm(`Cancel ${x.u}'s subscription to ${x.name} now?`)) {
+            act(stop, 'admin_cancel_sub', { id: x.id }, 'Subscription cancelled.');
+          }
+        });
+        right.append(stop);
+      }
+      li.append(main, right);
+      list.append(li);
+    });
+    return list;
+  }
+
   function decidedList(items) {
     if (!items.length) return el('p', null, 'No decisions yet.');
     const list = el('ul', 'wallet-list');
@@ -287,6 +319,7 @@
       emailSection(),
       section('Waiting for approval', pendingList(data.pending)),
       section('Balances', balanceList(data.balances)),
+      section('Subscriptions', subsList(data.subs || [])),
       section('Recent decisions', decidedList(data.decided)),
       section('Activity', ledgerList(data.ledger)),
     );

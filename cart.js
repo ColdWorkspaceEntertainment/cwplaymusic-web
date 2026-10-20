@@ -53,7 +53,7 @@
     const removed = [];
     keys.forEach((k) => {
       const p = products.find((x) => x.key === k);
-      if (p && creditPrice(p) && p.status === 'open') items.push(p);
+      if (p && creditPrice(p) && p.status === 'open' && !p.subscription) items.push(p);
       else removed.push(p ? p.name : k);
     });
     if (removed.length) writeCart(items.map((p) => p.key));
