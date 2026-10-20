@@ -106,7 +106,22 @@ async function loadCatalog() {
   const res = await fetch(new URL('catalog.json', ROOT), { cache: 'no-store' });
   if (!res.ok) throw new Error('catalog');
   const data = await res.json();
-  return Array.isArray(data.products) ? data.products : [];
+  const products = Array.isArray(data.products) ? data.products : [];
+  // Live order counts from the server are added to the numbers in catalog.json.
+  // A small, uncached request just for the counts (waits at most 4 s, then shows the catalog numbers).
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch(`${STATUS_API}?orders=1&t=${Date.now()}`, { cache: 'no-store', signal: ctrl.signal });
+    clearTimeout(timer);
+    const live = r.ok ? await r.json() : null;
+    const counts = (live && live.orders) || {};
+    products.forEach((p) => {
+      const n = Number(counts[p.key]) || 0;
+      if (n) p.orders = (Number(p.orders) || 0) + n;
+    });
+  } catch (err) { /* keep the catalog numbers */ }
+  return products;
 }
 
 function applyStatuses(products) {
@@ -299,6 +314,7 @@ async function setupSubscribe(btn, p) {
     const { ok, data } = await creditsCall('subscribe', { product: p.key });
     if (ok) {
       const next = new Date(data.sub.next_due * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      sessionStorage.removeItem(STATUS_CACHE_KEY);
       showToast(data.resumed ? 'Your subscription continues.' : `Subscribed! Next payment on ${next}.`);
       setButton(btn, 'Subscribed', 'fa-solid fa-check');
       return;
@@ -800,6 +816,7 @@ if (dialog && form) {
         setError(data.error || 'Your order couldn\'t be sent. Try again in a few minutes.');
         return;
       }
+      sessionStorage.removeItem(STATUS_CACHE_KEY); // so the new order shows up in the count right away
       document.getElementById('orderDoneText').textContent = current.type === 'buy'
         ? `Purchased! Your new balance is ${fmtCredits(data.balance)} CW Credits. We'll deliver it to you on Discord.`
         : current.type === 'comment'
