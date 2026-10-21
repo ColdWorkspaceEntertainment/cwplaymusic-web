@@ -163,6 +163,8 @@
     return li;
   }
 
+  let productsByKey = {};
+  let maxDevices = 2;
   const day = (ts) => new Date(ts * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
   function subItem(x) {
@@ -178,6 +180,30 @@
       cancelled: x.reason === 'unpaid' ? 'Cancelled because it couldn\'t be paid' : 'Ended',
     }[x.status] || price;
     main.append(name, el('span', 'w-sub', line));
+    if (x.license) {
+      // Desktop program: license key, computers and download
+      const row = el('div', 'lic-row');
+      const copy = el('button', 'shop-btn shop-btn--ghost', 'Copy key');
+      copy.type = 'button';
+      copy.prepend(icon('fa-solid fa-copy'));
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(x.license);
+          showToast('License key copied.');
+        } catch (err) {
+          showToast('Select the key and copy it.');
+        }
+      });
+      row.append(el('code', 'lic-key', x.license), copy);
+      const prod = productsByKey[x.key];
+      if (prod && prod.download && ['active', 'grace', 'cancelling'].includes(x.status)) {
+        const dl = el('a', 'shop-btn', 'Download');
+        dl.href = prod.download;
+        dl.prepend(icon('fa-solid fa-download'));
+        row.append(dl);
+      }
+      main.append(row, el('span', 'w-sub', `License used on ${x.devices || 0} of ${maxDevices} computers`));
+    }
     const chip = { active: ['approved', 'Active'], grace: ['pending', 'Payment due'], cancelling: ['pending', 'Ending'], cancelled: ['rejected', 'Ended'] }[x.status] || ['pending', x.status];
     const right = el('div', 'adm-actions');
     right.append(el('span', `w-status w-status--${chip[0]}`, chip[1]));
@@ -220,6 +246,10 @@
     const grid = el('div', 'wallet-grid');
     grid.append(balanceBox(data.balance), requestBox(pending));
     const subs = data.subs || [];
+    maxDevices = data.max_devices || 2;
+    if (subs.some((x) => x.license)) {
+      try { (await loadCatalog()).forEach((p) => { productsByKey[p.key] = p; }); } catch (err) { /* no download links */ }
+    }
     const due = subs.filter((x) => x.status === 'grace');
     if (due.length) {
       const warn = el('div', 'st-overall st-overall--down');

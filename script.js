@@ -621,7 +621,8 @@ function renderProductPage() {
   if (isSub) {
     const subNote = el('p', 'pd-note');
     subNote.append(icon('fa-solid fa-rotate'), el('span', null,
-      'Renews every 30 days from your CW Credits. If your balance is too low, you have 24 hours to top up before it\'s cancelled. Cancel any time in your wallet.'));
+      'Renews every 30 days from your CW Credits. If your balance is too low, you have 24 hours to top up before it\'s cancelled. Cancel any time in your wallet.'
+      + (p.license ? ' Includes a license key for the desktop program; your key and the download link are in your wallet.' : '')));
     buy.append(subNote);
   }
   if (credits) {

@@ -253,6 +253,51 @@
     return list;
   }
 
+  function licenseSection(data) {
+    const box = el('div', 'adm-status');
+    if (data.license_public_key) {
+      const row = el('div', 'lic-row');
+      const copy = el('button', 'shop-btn shop-btn--ghost', 'Copy');
+      copy.type = 'button';
+      copy.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(data.license_public_key); showToast('Public key copied.'); } catch (err) { showToast('Select the key and copy it.'); }
+      });
+      row.append(el('code', 'lic-key lic-key--long', data.license_public_key), copy);
+      box.append(el('p', 'w-sub', 'License public key — paste it into PUBLIC_KEY_B64 in fizzy_license.py (only needed once):'), row);
+    } else if (data.license_error) {
+      box.append(el('pre', 'adm-mail-error', data.license_error));
+    }
+    const items = data.licenses || [];
+    if (!items.length) {
+      box.append(el('p', null, 'No licenses yet. They appear when someone subscribes to a product with "license": true.'));
+      return section('Licenses', box);
+    }
+    const list = el('ul', 'wallet-list');
+    items.forEach((l) => {
+      const li = el('li');
+      const main = el('div', 'w-main');
+      main.append(el('span', null, `${l.product} · ${l.u}`), el('span', 'w-sub', `${l.key} · ${l.uid}`));
+      main.append(el('span', 'w-sub', l.devices.length
+        ? `Computers (${l.devices.length}/${data.max_devices || 2}): ` + l.devices.map((d) => `${d.name || 'Unknown'} (last used ${when(d.last)})`).join(', ')
+        : 'Not used on any computer yet'));
+      const right = el('div', 'adm-actions');
+      if (l.devices.length) {
+        const reset = el('button', 'shop-btn shop-btn--ghost', 'Reset computers');
+        reset.type = 'button';
+        reset.addEventListener('click', () => {
+          if (window.confirm(`Remove all computers from ${l.u}'s license? They can then use it on new computers.`)) {
+            act(reset, 'admin_reset_devices', { license: l.key }, 'Computers reset.');
+          }
+        });
+        right.append(reset);
+      }
+      li.append(main, right);
+      list.append(li);
+    });
+    box.append(list);
+    return section('Licenses', box);
+  }
+
   function decidedList(items) {
     if (!items.length) return el('p', null, 'No decisions yet.');
     const list = el('ul', 'wallet-list');
@@ -320,6 +365,7 @@
       section('Waiting for approval', pendingList(data.pending)),
       section('Balances', balanceList(data.balances)),
       section('Subscriptions', subsList(data.subs || [])),
+      licenseSection(data),
       section('Recent decisions', decidedList(data.decided)),
       section('Activity', ledgerList(data.ledger)),
     );
