@@ -320,16 +320,35 @@ function setButton(btn, text, iconClass) {
   btn.prepend(icon(iconClass));
 }
 async function setupSubscribe(btn, p) {
+  // Priority Listeners: YouTube channel instead of a note (shown on the Early Access page once delivered)
+  let yt = null;
+  if (p.key === 'priority-listeners') {
+    const wrap = el('label', 'pl-yt');
+    yt = el('input');
+    Object.assign(yt, { type: 'url', maxLength: 200, placeholder: 'https://youtube.com/@yourchannel', autocomplete: 'url' });
+    wrap.append(el('span', null, 'Your YouTube channel'), yt,
+      el('small', 'w-sub', 'Shown with your username on the Priority Listeners page after your order is delivered.'));
+    btn.before(wrap);
+  }
   btn.addEventListener('click', async () => {
     if (!readLogin()) {
       rememberReturn();
       window.location.href = new URL('account.html', ROOT).href;
       return;
     }
+    let youtube = '';
+    if (yt) {
+      youtube = yt.value.trim();
+      if (!/^(https?:\/\/)?(www\.|m\.)?youtube\.com\/(@[\w.-]{3,30}|channel\/UC[\w-]{22}|c\/[\w.-]+|user\/[\w.-]+)\/?$/i.test(youtube)) {
+        yt.focus();
+        showToast('Add your YouTube channel link, e.g. https://youtube.com/@yourchannel');
+        return;
+      }
+    }
     const price = fmtCredits(creditPrice(p));
     if (!window.confirm(`Subscribe to ${p.name} for ${price} CW Credits a month?\n\nThe first month is paid now from your balance. It renews every 30 days; you can cancel any time in your wallet.`)) return;
     btn.disabled = true;
-    const { ok, data } = await creditsCall('subscribe', { product: p.key });
+    const { ok, data } = await creditsCall('subscribe', { product: p.key, youtube });
     if (ok) {
       const next = new Date(data.sub.next_due * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
       sessionStorage.removeItem(STATUS_CACHE_KEY);
