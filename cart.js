@@ -28,12 +28,12 @@
     root.replaceChildren(header(), box);
   }
 
-  function doneView(balance) {
+  function doneView(balance, orderNo) {
     const box = el('div', 'pd-buybox cart-empty');
     const wallet = el('a', 'shop-btn shop-btn--ghost', 'Open your wallet');
     wallet.href = new URL('wallet.html', ROOT).href;
     box.append(icon('fa-solid fa-circle-check'), el('p', 'pd-price', 'Order sent'),
-      el('p', null, `Your new balance is ${fmtCredits(balance)} CW Credits. We'll get back to you on Discord or by email.`), wallet);
+      el('p', null, `${orderNo ? `Order #${orderNo}. ` : ''}Your new balance is ${fmtCredits(balance)} CW Credits. Follow your order under “My orders” in your wallet.`), wallet);
     root.replaceChildren(header(), box);
   }
 
@@ -142,7 +142,8 @@
       const r = await creditsCall('buy_cart', { products: items.map((p) => p.key), message: note.value.trim(), website: hp.value });
       if (r.ok) {
         writeCart([]);
-        doneView(r.data.balance);
+        sessionStorage.removeItem(STATUS_CACHE_KEY);
+        doneView(r.data.balance, r.data.order);
         return;
       }
       if (r.data.login) return void render();

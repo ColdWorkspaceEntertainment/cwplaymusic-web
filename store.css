@@ -575,6 +575,24 @@
 .lic-key { padding: 0.35rem 0.7rem; border-radius: 8px; background: rgba(0, 0, 0, 0.35); color: #fff; font-family: ui-monospace, Consolas, monospace; font-size: 0.9rem; letter-spacing: 0.04em; user-select: all; }
 .lic-key--long { font-size: 0.75rem; overflow-wrap: anywhere; max-width: 100%; }
 
+/* ---------- Orders, reviews, account settings ---------- */
+.ord .w-main { gap: 0.35rem; }
+.rv-form { display: grid; gap: 0.4rem; margin-top: 0.4rem; padding: 0.7rem; border-radius: 10px; background: rgba(0, 0, 0, 0.2); }
+.rv-form textarea { width: 100%; min-height: 54px; padding: 0.5rem 0.7rem; border: 1px solid var(--s-line); border-radius: 10px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; resize: vertical; }
+.rv-form .shop-btn { justify-self: start; min-height: 36px; padding: 0.35rem 1rem; }
+.rv-stars { display: flex; gap: 0.15rem; }
+.rv-star { border: 0; background: none; color: var(--s-star); font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 0 0.1rem; }
+.rv-list { display: grid; gap: 0.7rem; margin: 0; padding: 0; list-style: none; }
+.rv-list li { padding: 0.9rem 1.1rem; border-radius: 12px; background: var(--s-faint); }
+.rv-list p { margin-top: 0.35rem; color: var(--s-muted); line-height: 1.6; }
+.rv-top { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; }
+.rv-stars-static { color: var(--s-star); letter-spacing: 0.05em; }
+.adm-select { min-height: 38px; padding: 0.3rem 0.7rem; border: 1px solid var(--s-line); border-radius: 999px; background: var(--s-bg-2); color: var(--s-text); font: inherit; }
+.adm-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.adm-file { color: var(--s-muted); font-size: 0.85rem; max-width: 100%; }
+.acc-danger { border-color: rgba(255, 138, 122, 0.7); color: var(--s-full); }
+.acc-danger:hover { background: rgba(255, 138, 122, 0.15); color: #fff; box-shadow: 0 0 0 2px var(--s-bg-2), 0 0 0 4px var(--s-full); }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }

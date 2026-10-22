@@ -116,9 +116,18 @@ async function loadCatalog() {
     clearTimeout(timer);
     const live = r.ok ? await r.json() : null;
     const counts = (live && live.orders) || {};
+    const ratings = (live && live.ratings) || {};
     products.forEach((p) => {
       const n = Number(counts[p.key]) || 0;
       if (n) p.orders = (Number(p.orders) || 0) + n;
+      // approved site reviews are added to the rating in catalog.json
+      const r = ratings[p.key];
+      if (r && r.count) {
+        const baseN = p.rating != null ? Number(p.reviews) || 0 : 0;
+        const total = baseN + r.count;
+        p.rating = ((Number(p.rating) || 0) * baseN + r.sum) / total;
+        p.reviews = total;
+      }
     });
   } catch (err) { /* keep the catalog numbers */ }
   return products;
@@ -663,6 +672,32 @@ function renderProductPage() {
     root.append(sec);
   }
 
+  // reviews (approved ones, newest first)
+  const revSec = pdSection('Reviews');
+  revSec.append(el('p', 'w-sub', 'Loading reviews…'));
+  root.append(revSec);
+  fetch(`${STATUS_API}?reviews=${encodeURIComponent(p.key)}&t=${Date.now()}`, { cache: 'no-store' })
+    .then((r) => r.json()).catch(() => ({}))
+    .then((d) => {
+      const list = (d && d.reviews) || [];
+      revSec.replaceChildren(el('h2', null, 'Reviews'));
+      if (!list.length) {
+        revSec.append(el('p', null, 'No written reviews yet. Customers can review a product after their order is delivered.'));
+        return;
+      }
+      const ul = el('ul', 'rv-list');
+      list.forEach((r) => {
+        const li = el('li');
+        const top = el('div', 'rv-top');
+        top.append(el('span', 'rv-stars-static', '★'.repeat(r.stars) + '☆'.repeat(5 - r.stars)), el('strong', null, r.u),
+          el('span', 'w-sub', new Date(r.created * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })));
+        li.append(top);
+        if (r.text) li.append(el('p', null, r.text));
+        ul.append(li);
+      });
+      revSec.append(ul);
+    });
+
   const others = CATALOG.filter((x) => x.key !== p.key);
   if (others.length) {
     const sec = pdSection('More from the store');
@@ -818,11 +853,12 @@ if (dialog && form) {
         return;
       }
       sessionStorage.removeItem(STATUS_CACHE_KEY); // so the new order shows up in the count right away
+      const no = data.order ? `Order #${data.order}. ` : '';
       document.getElementById('orderDoneText').textContent = current.type === 'buy'
-        ? `Purchased! Your new balance is ${fmtCredits(data.balance)} CW Credits. We'll deliver it to you on Discord.`
+        ? `${no}Purchased! Your new balance is ${fmtCredits(data.balance)} CW Credits. You can follow it under “My orders” in your wallet.`
         : current.type === 'comment'
-        ? 'Your comment reached us on Discord. Thank you.'
-        : 'Your order reached us on Discord. We\'ll reply to you there.';
+        ? 'Your comment reached us. Thank you.'
+        : `${no}Your order reached us. You can follow it under “My orders” in your wallet.`;
       form.querySelector('.order-body').hidden = true;
       form.querySelector('.order-done').hidden = false;
     } catch (err) {

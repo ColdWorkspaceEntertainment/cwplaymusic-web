@@ -226,6 +226,94 @@
     return li;
   }
 
+  // ---------- My orders: tracking, delivered files, reviews
+  const ORDER_CHIP = { received: ['pending', 'Received'], in_progress: ['pending', 'In progress'], delivered: ['approved', 'Delivered'], cancelled: ['rejected', 'Cancelled'] };
+  const fmtSize = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+  async function downloadFile(f, btn) {
+    btn.disabled = true;
+    const { ok, data } = await creditsCall('order_file', { id: f.id });
+    btn.disabled = false;
+    if (!ok) return showToast(data.error || 'The file couldn\'t be downloaded.');
+    const bytes = Uint8Array.from(atob(data.data), (ch) => ch.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: data.mime }));
+    const a = el('a');
+    a.href = url;
+    a.download = data.name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  function reviewForm(o, item) {
+    const box = el('div', 'rv-form');
+    let stars = 0;
+    const row = el('div', 'rv-stars');
+    const btns = [1, 2, 3, 4, 5].map((n) => {
+      const b = el('button', 'rv-star', '☆');
+      b.type = 'button';
+      b.setAttribute('aria-label', `${n} star${n > 1 ? 's' : ''}`);
+      b.addEventListener('click', () => {
+        stars = n;
+        btns.forEach((x, i) => { x.textContent = i < n ? '★' : '☆'; });
+      });
+      row.append(b);
+      return b;
+    });
+    const text = el('textarea');
+    Object.assign(text, { maxLength: 500, rows: 2, placeholder: 'What did you think? (optional)' });
+    const send = el('button', 'shop-btn', 'Send review');
+    send.type = 'button';
+    send.addEventListener('click', async () => {
+      if (!stars) return showToast('Choose 1 to 5 stars.');
+      send.disabled = true;
+      const { ok, data } = await creditsCall('review', { order: o.id, product: item.key, stars, text: text.value.trim() });
+      if (ok) {
+        showToast('Thanks! Your review will appear after it\'s approved.');
+        render();
+      } else {
+        showToast(data.error || 'Your review couldn\'t be sent.');
+        send.disabled = false;
+      }
+    });
+    box.append(el('span', 'w-sub', `Review ${item.name}:`), row, text, send);
+    return box;
+  }
+
+  function orderItem(o) {
+    const li = el('li', 'ord');
+    const main = el('div', 'w-main');
+    const names = o.items.map((i) => i.name + (i.price ? ` (${fmtCredits(i.price)} CW Credits)` : '')).join(', ');
+    const kind = { order: 'Order', credits: 'CW Credits', cart: 'Cart', subscription: 'Subscription' }[o.kind] || o.kind;
+    main.append(el('span', 'w-amount', `#${o.id} · ${names}`), el('span', 'w-sub', `${kind} · ${when(o.created)}${o.note ? ` · “${o.note}”` : ''}`));
+    // delivered files
+    (o.files || []).forEach((f) => {
+      const row = el('div', 'lic-row');
+      const dl = el('button', 'shop-btn shop-btn--ghost', `${f.name} (${fmtSize(f.size)})`);
+      dl.type = 'button';
+      dl.prepend(icon('fa-solid fa-download'));
+      dl.addEventListener('click', () => downloadFile(f, dl));
+      row.append(dl);
+      main.append(row);
+    });
+    // reviews (after delivery)
+    if (o.status === 'delivered') {
+      o.items.forEach((item) => {
+        const done = o.reviews && o.reviews[item.key];
+        if (done) {
+          main.append(el('span', 'w-sub', `Your review of ${item.name}: ${'★'.repeat(done.stars)}${'☆'.repeat(5 - done.stars)} · `
+            + ({ pending: 'waiting for approval', approved: 'published', rejected: 'not published' }[done.status] || done.status)));
+        } else if (item.key) {
+          main.append(reviewForm(o, item));
+        }
+      });
+    }
+    const [tone, label] = ORDER_CHIP[o.status] || ['pending', o.status];
+    li.append(main, el('span', `w-status w-status--${tone}`, label));
+    return li;
+  }
+
   async function render() {
     root.replaceChildren(header());
     if (!readLogin()) {
@@ -246,6 +334,19 @@
     const grid = el('div', 'wallet-grid');
     grid.append(balanceBox(data.balance), requestBox(pending));
     const subs = data.subs || [];
+    const ordersSection = el('section', 'pd-section');
+    ordersSection.append(el('h2', null, 'My orders'), el('p', 'w-sub', 'Loading…'));
+    creditsCall('orders').then(({ ok: good, data: od }) => {
+      const list = (good && od.orders) || [];
+      ordersSection.replaceChildren(el('h2', null, 'My orders'));
+      if (!list.length) {
+        ordersSection.append(el('p', null, 'You haven\'t ordered anything yet.'));
+        return;
+      }
+      const ul = el('ul', 'wallet-list');
+      list.forEach((o) => ul.append(orderItem(o)));
+      ordersSection.append(ul);
+    });
     maxDevices = data.max_devices || 2;
     if (subs.some((x) => x.license)) {
       try { (await loadCatalog()).forEach((p) => { productsByKey[p.key] = p; }); } catch (err) { /* no download links */ }
@@ -263,6 +364,7 @@
       userRow(data.user, data.owner),
       grid,
       ...(subs.length ? [listSection('Subscriptions', subs, '', subItem)] : []),
+      ordersSection,
       listSection('Your requests', data.requests || [], 'You haven\'t requested any CW Credits yet.', requestItem),
       listSection('Activity', data.history || [], 'No activity yet.', historyItem),
     );

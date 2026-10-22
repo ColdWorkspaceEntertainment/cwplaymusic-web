@@ -260,25 +260,106 @@
     root.replaceChildren(header('Choose a new password'), box);
   }
 
-  function loggedInView(login) {
-    const box = el('div', 'pd-buybox acc-box acc-narrow');
-    const store = el('a', 'shop-btn shop-btn--block', 'Go to the store');
+  // ---------- Account settings (logged in)
+  function smallForm(title, fields, button, onSubmit, danger = false) {
+    const box = el('div', 'pd-buybox acc-box');
+    const form = el('form', 'wallet-form');
+    form.noValidate = true;
+    const inputs = fields.map(([label, attrs]) => {
+      const [wrap, input] = field(label, attrs);
+      form.append(wrap);
+      return input;
+    });
+    const err = errorLine();
+    const btn = el('button', danger ? 'shop-btn shop-btn--ghost acc-danger' : 'shop-btn', button);
+    btn.type = 'submit';
+    form.append(err, btn);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.textContent = '';
+      busy(btn, true, button);
+      const msg = await onSubmit(inputs.map((i) => i.value), err);
+      busy(btn, false, button);
+      if (msg) {
+        showToast(msg);
+        inputs.forEach((i) => { i.value = ''; });
+      }
+    });
+    box.append(el('p', 'pd-price-label', title), form);
+    return box;
+  }
+
+  async function loggedInView(login) {
+    const top = el('div', 'pd-buybox acc-box');
+    const store = el('a', 'shop-btn', 'Go to the store');
     store.href = new URL('index.html#store', ROOT).href;
-    const out = el('button', 'shop-btn shop-btn--ghost shop-btn--block', 'Log out');
+    const wallet = el('a', 'shop-btn shop-btn--ghost', 'Wallet & orders');
+    wallet.href = new URL('wallet.html', ROOT).href;
+    const out = el('button', 'shop-btn shop-btn--ghost', 'Log out');
     out.type = 'button';
     out.addEventListener('click', () => {
       sessionStorage.removeItem(LOGIN_KEY);
       route();
     });
-    box.append(el('p', 'pd-price', `Logged in as ${login.u}`), store, out);
-    root.replaceChildren(header('You\'re logged in'), box);
+    const actions = el('div', 'adm-actions');
+    actions.append(store, wallet, out);
+    top.append(el('p', 'pd-price', `Logged in as ${login.u}`), actions);
+    const tok = login.token;
+    const me = await call('me', { token: tok });
+    const parts = [header('Your account'), top];
+
+    if (me.ok) { // CW PLAY account (email + password)
+      top.append(el('p', 'w-sub', `${me.data.email} · CW PLAY account since ${new Date(me.data.created * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`));
+      const grid = el('div', 'wallet-grid');
+      grid.append(
+        smallForm('Change password', [['Current password', { type: 'password', autocomplete: 'current-password' }],
+          ['New password', { type: 'password', autocomplete: 'new-password', placeholder: 'At least 8 characters' }],
+          ['Repeat new password', { type: 'password', autocomplete: 'new-password' }]], 'Change password',
+        async ([cur, pw, again], err) => {
+          if (pw.length < 8) return void (err.textContent = 'Use a password with at least 8 characters.');
+          if (pw !== again) return void (err.textContent = 'The new passwords don\'t match.');
+          const r = await call('change_password', { token: tok, current: cur, password: pw });
+          if (!r.ok) return void (err.textContent = r.data.error || 'Couldn\'t change the password.');
+          return 'Your password was changed.';
+        }),
+        smallForm('Change email', [['New email', { type: 'email', autocomplete: 'email' }], ['Your password', { type: 'password', autocomplete: 'current-password' }]],
+          'Send confirmation link', async ([email, pw], err) => {
+            if (!/^\S+@\S+\.\S+$/.test(email.trim())) return void (err.textContent = 'Enter a valid email address.');
+            const r = await call('change_email', { token: tok, email: email.trim(), password: pw });
+            if (!r.ok) return void (err.textContent = r.data.error || 'Couldn\'t change the email.');
+            return 'Check the new address: open the link we sent to confirm it.';
+          }),
+      );
+      parts.push(grid, smallForm('Delete account', [['Your password', { type: 'password', autocomplete: 'current-password' }]],
+        'Delete my account and all my data', async ([pw], err) => {
+          if (!window.confirm('Delete your account? Your CW Credits, orders, subscriptions and reviews will be deleted. This can\'t be undone.')) return '';
+          const r = await call('delete_account', { token: tok, password: pw });
+          if (!r.ok) return void (err.textContent = r.data.error || 'Couldn\'t delete the account.');
+          sessionStorage.removeItem(LOGIN_KEY);
+          sessionStorage.setItem('cw_toast', 'Your account and all its data were deleted.');
+          window.location.replace(new URL('index.html', ROOT).href);
+          return '';
+        }, true));
+    } else { // Discord account: only data deletion here
+      top.append(el('p', 'w-sub', 'You logged in with Discord. Your Discord password and email are managed on Discord.'));
+      parts.push(smallForm('Delete my data', [['Type DELETE to confirm', { type: 'text', autocomplete: 'off' }]],
+        'Delete all my data', async ([word], err) => {
+          if (word.trim() !== 'DELETE') return void (err.textContent = 'Type DELETE in capital letters to confirm.');
+          if (!window.confirm('Delete your CW Credits, orders, subscriptions and reviews? This can\'t be undone.')) return '';
+          const r = await creditsCall('delete_data', { confirm: 'DELETE' });
+          if (!r.ok) return void (err.textContent = r.data.error || 'Couldn\'t delete your data.');
+          return 'All your data was deleted.';
+        }, true));
+    }
+    root.replaceChildren(...parts);
   }
 
   // ---------- Router
   const params = new URLSearchParams(window.location.search);
   const verifyToken = params.get('verify');
   const resetToken = params.get('reset');
-  if (verifyToken || resetToken) {
+  const emailToken = params.get('email');
+  if (verifyToken || resetToken || emailToken) {
     history.replaceState(null, '', window.location.pathname); // don't keep the token in the address bar
   }
 
@@ -291,7 +372,15 @@
     return loginView();
   }
 
-  if (verifyToken) verifyView(verifyToken);
+  if (emailToken) {
+    call('confirm_email', { token: emailToken }).then(({ ok, data }) => {
+      const box = el('div', 'pd-buybox acc-box acc-narrow');
+      const back = el('p', 'acc-links');
+      back.append(link('Go to your account', '#'));
+      box.append(el('p', null, ok ? `Your email is now ${data.email}. Use it the next time you log in.` : (data.error || 'This link didn\'t work.')), back);
+      root.replaceChildren(header(ok ? 'Email changed' : 'Couldn\'t change the email'), box);
+    });
+  } else if (verifyToken) verifyView(verifyToken);
   else if (resetToken) resetView(resetToken);
   else route();
   window.addEventListener('hashchange', route);

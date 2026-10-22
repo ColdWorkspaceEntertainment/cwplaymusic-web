@@ -298,6 +298,118 @@
     return section('Licenses', box);
   }
 
+  // ---------- Orders (tracking + delivery) and reviews waiting for approval
+  function ordersSection() {
+    const box = el('div');
+    box.append(el('p', 'w-sub', 'Loading orders…'));
+    creditsCall('admin_orders').then(({ ok, data }) => {
+      box.replaceChildren();
+      if (!ok) {
+        box.append(el('p', null, data.error || 'Orders couldn\'t be loaded.'));
+        return;
+      }
+      const list = data.orders || [];
+      if (!list.length) {
+        box.append(el('p', null, 'No orders yet.'));
+        return;
+      }
+      const ul = el('ul', 'wallet-list');
+      list.forEach((o) => {
+        const li = el('li', 'ord');
+        const main = el('div', 'w-main');
+        const names = o.items.map((i) => i.name + (i.price ? ` (${fmtCredits(i.price)})` : '')).join(', ');
+        main.append(el('span', 'w-amount', `#${o.id} · ${names}`),
+          el('span', 'w-sub', `${o.u} · ${o.uid} · ${o.kind} · ${when(o.created)}${o.note ? ` · “${o.note}”` : ''}`));
+        // files already delivered
+        (o.files || []).forEach((f) => {
+          const row = el('div', 'lic-row');
+          const rm = el('button', 'shop-btn shop-btn--ghost', 'Remove');
+          rm.type = 'button';
+          rm.addEventListener('click', () => {
+            if (window.confirm(`Remove ${f.name} from order #${o.id}?`)) act(rm, 'admin_file_remove', { id: f.id }, 'File removed.');
+          });
+          row.append(el('span', 'w-sub', `📎 ${f.name} (${Math.max(1, Math.round(f.size / 1024))} KB)`), rm);
+          main.append(row);
+        });
+        // deliver a file (up to 5 MB)
+        const up = el('input');
+        up.type = 'file';
+        up.accept = '.png,.jpg,.jpeg,.webp,.gif,.pdf,.zip,.txt,.srt,.mp3,.wav';
+        up.className = 'adm-file';
+        up.addEventListener('change', async () => {
+          const file = up.files[0];
+          if (!file) return;
+          if (file.size > 5 * 1024 * 1024) {
+            up.value = '';
+            return showToast('Files can be up to 5 MB. For bigger files, send a link in a message.');
+          }
+          const b64 = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result).split(',')[1]);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+          up.disabled = true;
+          const { ok: good, data: res } = await creditsCall('admin_upload', { order: o.id, name: file.name, data: b64 });
+          showToast(good ? `${file.name} added to order #${o.id}.` : (res.error || 'Upload failed.'));
+          if (good) render(); else { up.disabled = false; up.value = ''; }
+        });
+        const upRow = el('label', 'w-sub adm-upload');
+        upRow.append('Deliver a file (max 5 MB): ', up);
+        main.append(upRow);
+        // status
+        const right = el('div', 'adm-actions');
+        const sel = el('select', 'adm-select');
+        Object.entries(data.statuses).forEach(([k, label]) => {
+          const opt = el('option', null, label);
+          opt.value = k;
+          if (k === o.status) opt.selected = true;
+          sel.append(opt);
+        });
+        sel.addEventListener('change', () => {
+          const label = data.statuses[sel.value];
+          const extra = sel.value === 'cancelled' && ['credits', 'cart'].includes(o.kind) ? ' Its CW Credits will be refunded.' : '';
+          if (window.confirm(`Set order #${o.id} to “${label}”?${extra}`)) {
+            act(sel, 'admin_order_status', { id: o.id, status: sel.value }, `Order #${o.id}: ${label}.`);
+          } else {
+            sel.value = o.status;
+          }
+        });
+        right.append(sel);
+        li.append(main, right);
+        ul.append(li);
+      });
+      box.append(ul);
+      // reviews waiting
+      reviewsBox.replaceChildren();
+      const rv = data.reviews || [];
+      if (!rv.length) {
+        reviewsBox.append(el('p', null, 'No reviews waiting.'));
+      } else {
+        const rl = el('ul', 'wallet-list');
+        rv.forEach((r) => {
+          const li = el('li');
+          const main = el('div', 'w-main');
+          main.append(el('span', null, `${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}  ${r.product} · ${r.u}`),
+            el('span', 'w-sub', `Order #${r.order_id} · ${when(r.created)}`));
+          if (r.text) main.append(el('span', 'w-note', `“${r.text}”`));
+          const right = el('div', 'adm-actions');
+          const yes = el('button', 'shop-btn', 'Publish');
+          const no = el('button', 'shop-btn shop-btn--ghost', 'Decline');
+          yes.type = no.type = 'button';
+          yes.addEventListener('click', () => act(yes, 'admin_review', { id: r.id, decision: 'approve' }, 'Review published.'));
+          no.addEventListener('click', () => act(no, 'admin_review', { id: r.id, decision: 'reject' }, 'Review declined.'));
+          right.append(yes, no);
+          li.append(main, right);
+          rl.append(li);
+        });
+        reviewsBox.append(rl);
+      }
+    });
+    return box;
+  }
+  const reviewsBox = el('div');
+
   function decidedList(items) {
     if (!items.length) return el('p', null, 'No decisions yet.');
     const list = el('ul', 'wallet-list');
@@ -363,6 +475,8 @@
       statusPart,
       emailSection(),
       section('Waiting for approval', pendingList(data.pending)),
+      section('Orders', ordersSection()),
+      section('Reviews waiting', reviewsBox),
       section('Balances', balanceList(data.balances)),
       section('Subscriptions', subsList(data.subs || [])),
       licenseSection(data),
