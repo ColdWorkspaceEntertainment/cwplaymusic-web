@@ -281,6 +281,42 @@
     return box;
   }
 
+  // simple chat thread used for CW PLAY Cinema orders
+  function chatBox(messages, me, send) {
+    const box = el('div', 'chat');
+    const list = el('div', 'chat-list');
+    const names = { customer: 'You', owner: 'Cold Works Production' };
+    if (me === 'owner') { names.customer = 'Customer'; names.owner = 'You'; }
+    messages.forEach((m) => {
+      const b = el('div', `chat-msg ${m.who === me ? 'is-me' : ''}`);
+      b.append(el('span', 'chat-who', `${names[m.who] || m.who} · ${when(m.created)}`), el('span', null, m.text));
+      list.append(b);
+    });
+    if (!messages.length) list.append(el('span', 'w-sub', me === 'customer' ? 'Questions about your screening? Write to us here.' : 'No messages yet.'));
+    const row = el('div', 'chat-row');
+    const input = el('textarea');
+    Object.assign(input, { rows: 2, maxLength: 1000, placeholder: 'Write a message…' });
+    const btn = el('button', 'shop-btn', 'Send');
+    btn.type = 'button';
+    btn.addEventListener('click', async () => {
+      const text = input.value.trim();
+      if (!text) return;
+      btn.disabled = true;
+      const { ok, data } = await send(text);
+      btn.disabled = false;
+      if (ok) {
+        showToast('Message sent.');
+        render();
+      } else {
+        showToast(data.error || 'Your message couldn\'t be sent.');
+      }
+    });
+    row.append(input, btn);
+    box.append(list, row);
+    return box;
+  }
+  window.cwChatBox = chatBox;
+
   function orderItem(o) {
     const li = el('li', 'ord');
     const main = el('div', 'w-main');
@@ -297,6 +333,26 @@
       row.append(dl);
       main.append(row);
     });
+    // CW PLAY Cinema: screening details + chat with us
+    if (o.cinema) {
+      const sc = o.screening || {};
+      const box = el('div', 'cin-box');
+      box.append(el('span', 'cin-title', '🎬 Your screening'));
+      if (sc.when || sc.link || sc.note) {
+        if (sc.when) box.append(el('span', null, `When: ${sc.when}`));
+        if (sc.note) box.append(el('span', 'w-sub', sc.note));
+        if (sc.link) {
+          const go = el('a', 'shop-btn', 'Open screening');
+          go.href = sc.link;
+          go.target = '_blank';
+          go.rel = 'noopener';
+          box.append(go);
+        }
+      } else {
+        box.append(el('span', 'w-sub', 'We\'ll add the date and link here soon.'));
+      }
+      main.append(box, chatBox(o.messages || [], 'customer', async (text) => creditsCall('order_message', { order: o.id, text })));
+    }
     // reviews (after delivery)
     if (o.status === 'delivered') {
       o.items.forEach((item) => {

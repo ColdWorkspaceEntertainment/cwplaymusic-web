@@ -298,6 +298,79 @@
     return section('Licenses', box);
   }
 
+  function chatThread(messages, mine, names) {
+    const list = el('div', 'chat-list');
+    messages.forEach((m) => {
+      const b = el('div', `chat-msg ${m.who === mine ? 'is-me' : ''}`);
+      b.append(el('span', 'chat-who', `${names[m.who] || m.who} · ${when(m.created)}`), el('span', null, m.text));
+      list.append(b);
+    });
+    if (!messages.length) list.append(el('span', 'w-sub', 'No messages yet.'));
+    return list;
+  }
+
+  function replyRow(label, onSend) {
+    const row = el('div', 'chat-row');
+    const input = el('textarea');
+    Object.assign(input, { rows: 2, maxLength: 2000, placeholder: 'Write a reply…' });
+    const btn = el('button', 'shop-btn', label);
+    btn.type = 'button';
+    btn.addEventListener('click', () => { if (input.value.trim()) onSend(btn, input.value.trim()); });
+    row.append(input, btn);
+    return row;
+  }
+
+  function adminChat(o) {
+    const box = el('div', 'chat');
+    box.append(chatThread(o.messages || [], 'owner', { customer: o.u, owner: 'You' }),
+      replyRow('Send', (btn, text) => act(btn, 'admin_order_message', { order: o.id, text }, 'Message sent.')));
+    return box;
+  }
+
+  // ---------- Support: questions from the Help page (Fizzy answers first)
+  function supportSection() {
+    const box = el('div');
+    box.append(el('p', 'w-sub', 'Loading…'));
+    supportCall('admin_tickets').then(({ ok, data }) => {
+      box.replaceChildren();
+      const list = (ok && data.tickets) || [];
+      if (!ok) return box.append(el('p', null, data.error || 'Support couldn\'t be loaded.'));
+      if (!list.length) return box.append(el('p', null, 'No questions right now.'));
+      const ul = el('ul', 'wallet-list');
+      list.forEach((t) => {
+        const li = el('li', 'ord');
+        const main = el('div', 'w-main');
+        main.append(el('span', 'w-amount', `#${t.id} · ${t.u}${t.human ? ' · needs you' : ''}`), el('span', 'w-sub', `${t.uid} · ${t.status} · ${when(t.updated)}`));
+        const chat = el('div', 'chat');
+        chat.append(chatThread(t.messages, 'owner', { user: t.u, fizzy: 'Fizzy', owner: 'You' }));
+        if (t.status !== 'closed') {
+          chat.append(replyRow('Reply', async (btn, text) => {
+            btn.disabled = true;
+            const r = await supportCall('admin_reply', { ticket: t.id, text });
+            showToast(r.ok ? 'Reply sent.' : (r.data.error || 'Couldn\'t send.'));
+            if (r.ok) render(); else btn.disabled = false;
+          }));
+        }
+        main.append(chat);
+        const right = el('div', 'adm-actions');
+        if (t.status !== 'closed') {
+          const close = el('button', 'shop-btn shop-btn--ghost', 'Close');
+          close.type = 'button';
+          close.addEventListener('click', async () => {
+            const r = await supportCall('admin_close', { ticket: t.id });
+            showToast(r.ok ? 'Closed.' : 'Couldn\'t close.');
+            if (r.ok) render();
+          });
+          right.append(close);
+        }
+        li.append(main, right);
+        ul.append(li);
+      });
+      box.append(ul);
+    });
+    return box;
+  }
+
   // ---------- Orders (tracking + delivery) and reviews waiting for approval
   function ordersSection() {
     const box = el('div');
@@ -331,6 +404,20 @@
           row.append(el('span', 'w-sub', `📎 ${f.name} (${Math.max(1, Math.round(f.size / 1024))} KB)`), rm);
           main.append(row);
         });
+        // CW PLAY Cinema: screening details + chat
+        if (o.cinema) {
+          const sc = o.screening || {};
+          const form = el('div', 'cin-box');
+          form.append(el('span', 'cin-title', '🎬 Screening details (the customer gets an email)'));
+          const fWhen = el('input'); Object.assign(fWhen, { value: sc.when || '', placeholder: 'When, e.g. 25 Oct 2026, 21:00', maxLength: 80 });
+          const fLink = el('input'); Object.assign(fLink, { value: sc.link || '', placeholder: 'https://… (watch link or ticket page)', maxLength: 500 });
+          const fNote = el('textarea'); Object.assign(fNote, { value: sc.note || '', placeholder: 'Note for the customer (ticket code, instructions…)', rows: 2, maxLength: 1000 });
+          const save = el('button', 'shop-btn', 'Save screening');
+          save.type = 'button';
+          save.addEventListener('click', () => act(save, 'admin_screening', { order: o.id, when: fWhen.value.trim(), link: fLink.value.trim(), note: fNote.value.trim() }, 'Screening saved.'));
+          form.append(fWhen, fLink, fNote, save);
+          main.append(form, adminChat(o));
+        }
         // deliver a file (up to 5 MB)
         const up = el('input');
         up.type = 'file';
@@ -475,6 +562,7 @@
       statusPart,
       emailSection(),
       section('Waiting for approval', pendingList(data.pending)),
+      section('Support', supportSection()),
       section('Orders', ordersSection()),
       section('Reviews waiting', reviewsBox),
       section('Balances', balanceList(data.balances)),

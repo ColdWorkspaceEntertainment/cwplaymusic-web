@@ -14,6 +14,7 @@ const ORDER_API = 'https://medya.cwplaymusic.com/fizzy/order.php';
 const LOGIN_URL = 'https://medya.cwplaymusic.com/fizzy/login.php';
 const CREDITS_API = 'https://medya.cwplaymusic.com/fizzy/credits.php';
 const STATUS_API = 'https://medya.cwplaymusic.com/fizzy/status.php';
+const SUPPORT_API = 'https://medya.cwplaymusic.com/fizzy/support.php';
 const ACCOUNT_API = 'https://medya.cwplaymusic.com/fizzy/account.php';
 const LOGIN_KEY = 'cw_discord_login';
 const RETURN_KEY = 'cw_login_return'; // the product page to come back to after logging in
@@ -170,9 +171,17 @@ function priceLabel(p) {
   return c ? `${fmtCredits(c)} CW Credits${p.subscription ? ' / month' : ''}` : (p.price || 'Price on request');
 }
 async function creditsCall(action, extra = {}) {
+  return apiCall(CREDITS_API, action, extra);
+}
+
+function supportCall(action, extra = {}) {
+  return apiCall(SUPPORT_API, action, extra);
+}
+
+async function apiCall(url, action, extra = {}) {
   const login = readLogin();
   try {
-    const res = await fetch(CREDITS_API, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
       body: JSON.stringify({ action, token: login ? login.token : '', ...extra }),
