@@ -1,4 +1,4 @@
-// Help page: ask Fizzy Littlejoy; if Fizzy can't answer (or you ask for a person), Bora replies here.
+// Help page: ask Fizzy Littlejoy; if Fizzy can't answer (or you ask for a person), Cold Works Production replies here.
 (() => {
   const root = document.getElementById('supportPage');
   if (!root) return;
@@ -9,10 +9,10 @@
     'How do subscriptions work?',
     'How do I get my film shown at CW PLAY Cinema?',
   ];
-  const STATE = { available: 'Bora is available', busy: 'Bora is busy', away: 'Bora is away' };
+  const STATE = { available: 'We\'re available', busy: 'We\'re busy', away: 'We\'re away' };
   let messages = [];
   let human = false;
-  let draft = ''; // what you're typing survives redraws (e.g. when Bora replies)
+  let draft = ''; // what you're typing survives redraws (e.g. when we reply)
 
   function header(text) {
     const head = el('header', 'shop-head');
@@ -24,7 +24,7 @@
   }
 
   function bubble(m) {
-    const who = { user: 'You', fizzy: 'Fizzy', owner: 'Bora' }[m.who] || m.who;
+    const who = { user: 'You', fizzy: 'Fizzy', owner: 'Cold Works Production' }[m.who] || m.who;
     const b = el('div', `chat-msg chat-msg--${m.who} ${m.who === 'user' ? 'is-me' : ''}`);
     const time = new Date(m.created * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     b.append(el('span', 'chat-who', `${who} · ${time}`), el('span', null, m.text));
@@ -40,8 +40,8 @@
     avatar.onerror = () => avatar.remove();
     const who = el('div');
     who.append(el('strong', null, 'Fizzy Littlejoy'),
-      el('span', 'w-sub', human ? 'Your question was passed to Bora. He\'ll reply here.' : (info.ai ? 'Assistant · answers about the store' : 'Assistant · answers common questions')));
-    top.append(avatar, who, el('span', `w-status w-status--${info.owner === 'available' ? 'approved' : 'pending'}`, STATE[info.owner] || 'Bora'));
+      el('span', 'w-sub', human ? 'Your question was passed to Cold Works Production. We\'ll reply here.' : (info.ai ? 'Assistant · answers about the store' : 'Assistant · answers common questions')));
+    top.append(avatar, who, el('span', `w-status w-status--${info.owner === 'available' ? 'approved' : 'pending'}`, STATE[info.owner] || 'Cold Works Production'));
     const list = el('div', 'chat-list sup-list');
     if (!messages.length) {
       list.append(bubble({ who: 'fizzy', created: Date.now() / 1000, text: 'Hi! I\'m Fizzy. Ask me about the store, CW Credits, your orders, subscriptions or CW PLAY Cinema. / Merhaba! Mağaza, CW Credits, siparişler, abonelikler ya da CW PLAY Cinema hakkında sorabilirsin.' }));
@@ -88,9 +88,9 @@
         person.disabled = false;
       }
     });
-    const foot = el('p', 'w-sub sup-foot', 'Fizzy is an assistant and can make mistakes. It can\'t see your account or change orders. Bora replies by hand, not 24/7.');
+    const foot = el('p', 'w-sub sup-foot', 'Fizzy is an assistant and can make mistakes. It can\'t see your account or change orders. Cold Works Production replies by hand, not 24/7.');
     box.append(top, list, quick, row, person, foot);
-    root.replaceChildren(header('Questions about the store? Fizzy answers right away. If Fizzy can\'t help, Bora will.'), box);
+    root.replaceChildren(header('Questions about the store? Fizzy answers right away. If Fizzy can\'t help, Cold Works Production will.'), box);
     list.scrollTop = list.scrollHeight;
     if (document.activeElement === document.body) input.focus({ preventScroll: true });
   }
@@ -114,7 +114,7 @@
   async function start() {
     if (!readLogin()) {
       const box = el('div', 'pd-buybox sup-box');
-      box.append(el('p', null, 'Log in with Discord or a CW PLAY account to ask a question. Fizzy answers right away, and Bora sees everything Fizzy can\'t answer.'), loginLink('Log in to ask'));
+      box.append(el('p', null, 'Log in with Discord or a CW PLAY account to ask a question. Fizzy answers right away, and Cold Works Production sees everything Fizzy can\'t answer.'), loginLink('Log in to ask'));
       root.replaceChildren(header('Questions about the store? Log in and ask Fizzy.'), box);
       return;
     }
@@ -127,7 +127,7 @@
     human = !!(r.data.ticket && r.data.ticket.human);
     info = { ai: r.data.ai, owner: r.data.owner };
     draw(info);
-    // check for Bora's replies every 20 seconds while the page is open
+    // check for our replies every 20 seconds while the page is open
     setInterval(async () => {
       if (document.hidden) return;
       const h = await supportCall('history');
