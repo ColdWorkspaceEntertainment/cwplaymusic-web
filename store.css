@@ -622,6 +622,23 @@
 
 .pl-yt { grid-column: 1 / -1; } /* kanal kutusu tam genişlik, Subscribe düğmesi altında kendi satırında */
 
+/* ---------- Discounts ---------- */
+.price-old { opacity: 0.6; font-weight: 400; margin-right: 0.15em; }
+.sale-badge { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px; background: #e0523f; color: #fff; font-size: 0.75em; font-weight: 800; vertical-align: middle; }
+.sale-banner { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 1rem; padding: 0.75rem 1rem; border-radius: 14px; background: linear-gradient(90deg, rgba(224, 82, 63, 0.9), rgba(155, 89, 182, 0.9)); color: #fff; line-height: 1.45; grid-column: 1 / -1; }
+.pd-buybox .sale-banner { margin-bottom: 0.4rem; }
+.disc { display: grid; gap: 0.8rem; }
+.disc-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1rem; }
+.disc-side { display: grid; gap: 1rem; align-content: start; }
+.disc-card { display: grid; gap: 0.55rem; }
+.disc-row { display: grid; gap: 0.25rem; font-weight: 600; }
+.disc-row input, .disc-row select { width: 100%; min-height: 40px; padding: 0.4rem 0.7rem; border: 1px solid var(--s-line); border-radius: 10px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; }
+.disc-row small { font-weight: 400; }
+.disc-presets { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.disc-presets .shop-btn { min-height: 34px; padding: 0.3rem 0.8rem; font-size: 0.85rem; }
+.disc-picks { display: grid; gap: 0.3rem; padding: 0.5rem 0.7rem; border-radius: 10px; background: rgba(0, 0, 0, 0.2); }
+@media (max-width: 820px) { .disc-grid { grid-template-columns: 1fr; } }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }

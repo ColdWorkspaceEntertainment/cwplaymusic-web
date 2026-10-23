@@ -328,6 +328,122 @@
   }
 
   // ---------- Support: questions from the Help page (Fizzy answers first)
+  // ---------- Discounts (no coupons): store sale for special days, first purchase, cart bundle
+  function discountsSection() {
+    const box = el('div', 'disc');
+    box.append(el('p', 'w-sub', 'Loading…'));
+    Promise.all([creditsCall('admin_discounts'), loadCatalog().catch(() => [])]).then(([r, products]) => {
+      box.replaceChildren();
+      if (!r.ok) return box.append(el('p', null, r.data.error || 'Discounts couldn\'t be loaded.'));
+      const d = r.data.discounts;
+      const toLocal = (ts) => {
+        if (!ts) return '';
+        const t = new Date(ts * 1000);
+        return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      };
+      const fromLocal = (v) => (v ? Math.floor(new Date(v).getTime() / 1000) : 0);
+      const row = (label, input, hint) => {
+        const l = el('label', 'disc-row');
+        l.append(el('span', null, label), input);
+        if (hint) l.append(el('small', 'w-sub', hint));
+        return l;
+      };
+      const onOff = (on) => {
+        const sel = el('select', 'adm-select');
+        [['1', 'On (var)'], ['0', 'Off (yok)']].forEach(([v, t]) => { const o = el('option', null, t); o.value = v; sel.append(o); });
+        sel.value = on ? '1' : '0';
+        return sel;
+      };
+      const num = (v, min, max) => { const i = el('input'); Object.assign(i, { type: 'number', min, max, value: v }); return i; };
+
+      // Store sale
+      const sale = el('div', 'pd-buybox disc-card');
+      const sOn = onOff(d.sale.on);
+      const sPct = num(d.sale.percent, 1, 90);
+      const sMsg = el('input'); Object.assign(sMsg, { maxLength: 140, value: d.sale.message, placeholder: 'e.g. Happy New Year! 🎉' });
+      const sScope = el('select', 'adm-select');
+      [['all', 'All products sold for CW Credits'], ['selected', 'Only the products I tick']].forEach(([v, t]) => { const o = el('option', null, t); o.value = v; sScope.append(o); });
+      sScope.value = d.sale.scope;
+      const picks = el('div', 'disc-picks');
+      products.filter((p) => creditPrice(p) && !p.subscription).forEach((p) => {
+        const l = el('label');
+        const c = el('input'); c.type = 'checkbox'; c.value = p.key; c.checked = d.sale.products.includes(p.key);
+        l.append(c, document.createTextNode(` ${p.name}`));
+        picks.append(l);
+      });
+      const syncPicks = () => { picks.hidden = sScope.value !== 'selected'; };
+      sScope.addEventListener('change', syncPicks);
+      syncPicks();
+      const sStart = el('input'); sStart.type = 'datetime-local'; sStart.value = toLocal(d.sale.start);
+      const sEnd = el('input'); sEnd.type = 'datetime-local'; sEnd.value = toLocal(d.sale.end);
+      const presets = el('div', 'disc-presets');
+      const now = new Date();
+      const next = (m, day, h = 0) => { const t = new Date(now.getFullYear(), m, day, h); if (t < now - 86400000) t.setFullYear(t.getFullYear() + 1); return t; };
+      const blackFriday = () => {
+        let y = now.getFullYear();
+        const fri = (yy) => { const t = new Date(yy, 10, 30); while (t.getDay() !== 5) t.setDate(t.getDate() - 1); return t; };
+        let f = fri(y);
+        if (f.getTime() + 4 * 86400000 < now.getTime()) f = fri(++y);
+        return f;
+      };
+      const fmt = (t) => new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      [
+        ['🎉 New Year', 'Happy New Year! 🎉', () => next(11, 31), (a) => new Date(a.getTime() + 2 * 86400000)],
+        ['💜 Valentine\'s Day', 'Happy Valentine\'s Day! 💜', () => next(1, 14), (a) => new Date(a.getTime() + 86400000)],
+        ['🖤 Black Friday', 'Black Friday sale! 🖤', blackFriday, (a) => new Date(a.getTime() + 4 * 86400000)],
+        ['🎂 CW PLAY birthday', 'It\'s CW PLAY\'s birthday! 🎂', null, null],
+      ].forEach(([label, msg, start, end]) => {
+        const b = el('button', 'shop-btn shop-btn--ghost', label);
+        b.type = 'button';
+        b.addEventListener('click', () => {
+          sMsg.value = msg;
+          sOn.value = '1';
+          if (start) { const a = start(); sStart.value = fmt(a); sEnd.value = fmt(end(a)); } else { sStart.value = ''; sEnd.value = ''; }
+          showToast(start ? 'Filled in. Check the dates and percent, then Save.' : 'Filled in. Set the dates for your birthday sale, then Save.');
+        });
+        presets.append(b);
+      });
+      const state = el('p', 'w-sub');
+      const ts = r.data.now;
+      if (!d.sale.on) state.textContent = 'Now: off.';
+      else if (d.sale.start && ts < d.sale.start) state.textContent = 'Now: scheduled, starts automatically.';
+      else if (d.sale.end && ts >= d.sale.end) state.textContent = 'Now: ended (the end date has passed).';
+      else state.textContent = 'Now: active on the store.';
+      sale.append(el('p', 'pd-price-label', 'Store sale (special days)'), state, el('span', 'w-sub', 'Quick fill:'), presets,
+        row('Discount status', sOn), row('Discount percent', sPct, '1–90%'), row('Discount message', sMsg, 'Shown at the top of the store and on discounted products.'),
+        row('Applies to', sScope), picks,
+        row('Starts (optional)', sStart, 'Leave empty to start right away.'), row('Ends (optional)', sEnd, 'Leave empty to keep it on until you turn it off.'));
+
+      // First purchase + cart bundle
+      const first = el('div', 'pd-buybox disc-card');
+      const fOn = onOff(d.first.on); const fPct = num(d.first.percent, 1, 90);
+      first.append(el('p', 'pd-price-label', 'First purchase'), el('p', 'w-sub', 'For customers who never bought anything with CW Credits.'),
+        row('Status', fOn), row('Discount percent', fPct));
+      const bundle = el('div', 'pd-buybox disc-card');
+      const bOn = onOff(d.bundle.on); const bMin = num(d.bundle.min, 2, 20); const bPct = num(d.bundle.percent, 1, 90);
+      bundle.append(el('p', 'pd-price-label', 'Cart bundle'), el('p', 'w-sub', 'When the cart has at least this many products.'),
+        row('Status', bOn), row('Minimum products', bMin), row('Discount percent', bPct));
+
+      const save = el('button', 'shop-btn', 'Save discounts');
+      save.type = 'button';
+      save.addEventListener('click', () => {
+        const startTs = fromLocal(sStart.value); const endTs = fromLocal(sEnd.value);
+        if (startTs && endTs && endTs <= startTs) return showToast('The end must be after the start.');
+        act(save, 'admin_discounts_save', { discounts: {
+          sale: { on: sOn.value === '1', percent: Number(sPct.value), message: sMsg.value.trim(), scope: sScope.value,
+            products: [...picks.querySelectorAll('input:checked')].map((c) => c.value), start: startTs, end: endTs },
+          first: { on: fOn.value === '1', percent: Number(fPct.value) },
+          bundle: { on: bOn.value === '1', min: Number(bMin.value), percent: Number(bPct.value) },
+        } }, 'Discounts saved.');
+      });
+      const grid = el('div', 'disc-grid');
+      grid.append(sale, el('div', 'disc-side'));
+      grid.lastChild.append(first, bundle);
+      box.append(grid, el('p', 'w-sub', 'Discounts don\'t add up: the biggest one applies. Subscriptions are never discounted. Prices are always calculated by the server.'), save);
+    });
+    return box;
+  }
+
   // Support: questions from the Help page (Fizzy answers first). Refreshes by itself every 5 seconds;
   // replies you're typing are kept.
   const supportBox = el('div');
@@ -603,6 +719,7 @@
       emailSection(),
       section('Waiting for approval', pendingList(data.pending)),
       section('Support', supportSection()),
+      section('Discounts', discountsSection()),
       section('Orders', ordersSection()),
       section('Reviews waiting', reviewsBox),
       section('Balances', balanceList(data.balances)),

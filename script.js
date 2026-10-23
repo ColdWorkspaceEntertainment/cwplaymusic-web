@@ -102,6 +102,7 @@ function icon(classes) {
 
 // ---------- Catalog ----------
 let CATALOG = [];
+let DISCOUNTS = {}; // active discounts from the server (prices are always calculated by the server at checkout)
 
 async function loadCatalog() {
   const res = await fetch(new URL('catalog.json', ROOT), { cache: 'no-store' });
@@ -118,6 +119,7 @@ async function loadCatalog() {
     const live = r.ok ? await r.json() : null;
     const counts = (live && live.orders) || {};
     const ratings = (live && live.ratings) || {};
+    DISCOUNTS = (live && live.discounts) || {};
     products.forEach((p) => {
       const n = Number(counts[p.key]) || 0;
       if (n) p.orders = (Number(p.orders) || 0) + n;
@@ -169,6 +171,38 @@ function fmtCredits(n) {
 function priceLabel(p) {
   const c = creditPrice(p);
   return c ? `${fmtCredits(c)} CW Credits${p.subscription ? ' / month' : ''}` : (p.price || 'Price on request');
+}
+
+// ---------- Discounts (no coupons): store sale, first purchase, cart bundle. Subscriptions aren't discounted.
+function salePercent(p) {
+  const s = DISCOUNTS.sale;
+  if (!s || p.subscription || !creditPrice(p)) return 0;
+  return s.scope === 'all' || (s.products || []).includes(p.key) ? Number(s.percent) || 0 : 0;
+}
+function discountedPrice(price, pct) {
+  return pct > 0 ? Math.max(1, Math.floor((price * (100 - pct)) / 100)) : price;
+}
+function priceEl(tag, cls, p, pct = salePercent(p)) {
+  const node = el(tag, cls);
+  if (!pct) {
+    node.textContent = priceLabel(p);
+    return node;
+  }
+  node.append(el('del', 'price-old', fmtCredits(creditPrice(p))),
+    document.createTextNode(` ${fmtCredits(discountedPrice(creditPrice(p), pct))} CW Credits `), el('span', 'sale-badge', `−${pct}%`));
+  return node;
+}
+function saleBanner() {
+  const s = DISCOUNTS.sale;
+  if (!s) return null;
+  const b = el('div', 'sale-banner');
+  const text = el('span');
+  text.append(el('strong', null, s.message || `${s.percent}% off`));
+  const scope = s.scope === 'all' ? ` ${s.percent}% off everything sold for CW Credits` : ` ${s.percent}% off selected products`;
+  text.append(document.createTextNode(` ·${scope}`));
+  if (s.end) text.append(document.createTextNode(` · until ${new Date(s.end * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`));
+  b.append(icon('fa-solid fa-tags'), text);
+  return b;
 }
 async function creditsCall(action, extra = {}) {
   return apiCall(CREDITS_API, action, extra);
@@ -464,7 +498,7 @@ function productCard(p) {
   body.append(metaFor(p));
 
   const foot = el('div', 'shop-card-foot');
-  foot.append(el('span', 'shop-price', priceLabel(p)));
+  foot.append(priceEl('span', 'shop-price', p));
   const view = el('a', 'shop-btn', 'View');
   view.href = url;
   view.setAttribute('aria-label', `View ${p.name}`);
@@ -590,7 +624,9 @@ function renderProductPage() {
 
   const buy = el('div', 'pd-buybox');
   const price = el('div');
-  price.append(el('p', 'pd-price-label', 'Price'), el('p', 'pd-price', priceLabel(p)));
+  price.append(el('p', 'pd-price-label', 'Price'), priceEl('p', 'pd-price', p));
+  const banner = salePercent(p) ? saleBanner() : null;
+  if (banner) buy.append(banner);
   buy.append(price);
 
   const isOpen = p.status === 'open';
@@ -657,6 +693,14 @@ function renderProductPage() {
   hint.append(icon('fa-brands fa-discord'),
     el('span', null, 'Log in with Discord or a CW PLAY account to order or comment. Orders are reviewed by hand and answered on Discord or by email.'));
   buy.append(hint);
+  if (credits && !isSub && (DISCOUNTS.first || DISCOUNTS.bundle)) {
+    const dn = el('p', 'pd-note');
+    const parts = [];
+    if (DISCOUNTS.first) parts.push(`First purchase with CW Credits: ${DISCOUNTS.first.percent}% off.`);
+    if (DISCOUNTS.bundle) parts.push(`Buy ${DISCOUNTS.bundle.min} or more products in one cart: ${DISCOUNTS.bundle.percent}% off.`);
+    dn.append(icon('fa-solid fa-tag'), el('span', null, parts.join(' ') + ' Discounts don\'t add up; the biggest one applies at checkout.'));
+    buy.append(dn);
+  }
   if (isSub) {
     const subNote = el('p', 'pd-note');
     subNote.append(icon('fa-solid fa-rotate'), el('span', null,
@@ -801,11 +845,13 @@ function openOrderDialog(product, type) {
   document.getElementById('messageLabel').textContent = isComment ? 'Comment' : 'Note (optional)';
   form.message.required = isComment;
   document.getElementById('orderSubmit').textContent = isComment ? 'Send comment'
-    : isBuy ? `Buy for ${fmtCredits(creditPrice(product))} CW Credits` : 'Send order';
+    : isBuy ? `Buy for ${fmtCredits(discountedPrice(creditPrice(product), salePercent(product)))} CW Credits` : 'Send order';
   if (isBuy && readLogin()) {
     // Show the price and the visitor's balance under the product name
     const line = document.getElementById('orderProduct');
-    line.textContent += ` · ${priceLabel(product)}`;
+    line.textContent += salePercent(product)
+      ? ` · ${fmtCredits(discountedPrice(creditPrice(product), salePercent(product)))} CW Credits (−${salePercent(product)}%)`
+      : ` · ${priceLabel(product)}`;
     creditsCall('wallet').then(({ ok, data }) => {
       if (ok && current && current.product === product) line.textContent += ` · Your balance: ${fmtCredits(data.balance)}`;
     });
@@ -885,7 +931,7 @@ if (dialog && form) {
       sessionStorage.removeItem(STATUS_CACHE_KEY); // so the new order shows up in the count right away
       const no = data.order ? `Order #${data.order}. ` : '';
       document.getElementById('orderDoneText').textContent = current.type === 'buy'
-        ? `${no}Purchased! Your new balance is ${fmtCredits(data.balance)} CW Credits. You can follow it under “My orders” in your wallet.`
+        ? `${no}Purchased${data.discount && data.discount.percent ? ` with ${data.discount.percent}% off (you paid ${fmtCredits(data.paid)} CW Credits)` : ''}! Your new balance is ${fmtCredits(data.balance)} CW Credits. You can follow it under “My orders” in your wallet.`
         : current.type === 'comment'
         ? 'Your comment reached us. Thank you.'
         : `${no}Your order reached us. You can follow it under “My orders” in your wallet.`;
@@ -907,6 +953,9 @@ loadCatalog()
     CATALOG = products;
     applyStatuses(products);
     renderCatalog();
+    const catBox = document.getElementById('catalog');
+    const banner = saleBanner();
+    if (catBox && banner) catBox.prepend(banner);
     renderProductPage();
   })
   .catch(() => {

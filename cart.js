@@ -62,7 +62,11 @@
       return;
     }
 
-    const total = items.reduce((sum, p) => sum + creditPrice(p), 0);
+    // discounts shown here are an estimate; the server calculates the final price at checkout
+    const bundle = DISCOUNTS.bundle && items.length >= DISCOUNTS.bundle.min ? DISCOUNTS.bundle.percent : 0;
+    const pctFor = (p) => Math.max(salePercent(p), bundle);
+    const listTotal = items.reduce((sum, p) => sum + creditPrice(p), 0);
+    const total = items.reduce((sum, p) => sum + discountedPrice(creditPrice(p), pctFor(p)), 0);
 
     // Item list
     const list = el('ul', 'wallet-list');
@@ -80,7 +84,7 @@
         writeCart(readCart().filter((k) => k !== p.key));
         render();
       });
-      right.append(el('span', 'w-amount', `${fmtCredits(creditPrice(p))} CW Credits`), remove);
+      right.append(priceEl('span', 'w-amount', p, pctFor(p)), remove);
       li.append(main, right);
       list.append(li);
     });
@@ -90,8 +94,14 @@
 
     // Checkout box
     const box = el('div', 'pd-buybox');
-    box.append(el('p', 'pd-price-label', 'Total'), el('p', 'pd-price', `${fmtCredits(total)} CW Credits`),
-      el('p', 'w-sub', `${items.length} item${items.length === 1 ? '' : 's'}`));
+    const totalEl = el('p', 'pd-price');
+    if (total < listTotal) totalEl.append(el('del', 'price-old', fmtCredits(listTotal)), document.createTextNode(' '));
+    totalEl.append(document.createTextNode(`${fmtCredits(total)} CW Credits`));
+    box.append(el('p', 'pd-price-label', 'Total'), totalEl, el('p', 'w-sub', `${items.length} item${items.length === 1 ? '' : 's'}`));
+    const hints = [];
+    if (DISCOUNTS.bundle && items.length < DISCOUNTS.bundle.min) hints.push(`Add ${DISCOUNTS.bundle.min - items.length} more product${DISCOUNTS.bundle.min - items.length === 1 ? '' : 's'} for ${DISCOUNTS.bundle.percent}% off.`);
+    if (DISCOUNTS.first) hints.push(`First purchase? You get ${DISCOUNTS.first.percent}% off at checkout if it's bigger than your other discounts.`);
+    if (hints.length) box.append(el('p', 'w-sub', hints.join(' ')));
 
     if (!readLogin()) {
       box.append(el('p', 'pd-note', 'Log in to pay with your CW Credits.'), loginLink());
