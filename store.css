@@ -615,6 +615,13 @@
 .sup-quick .shop-btn { min-height: 36px; padding: 0.35rem 0.9rem; font-size: 0.88rem; }
 .sup-foot { font-size: 0.8rem; }
 
+/* ---------- Priority Listeners: YouTube channel field ---------- */
+.pl-yt { display: grid; gap: 0.35rem; margin-bottom: 0.6rem; font-weight: 600; }
+.pl-yt input { width: 100%; min-height: 44px; padding: 0.55rem 0.8rem; border: 1px solid var(--s-line); border-radius: 12px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; }
+.pl-yt small { font-weight: 400; }
+
+.pl-yt { grid-column: 1 / -1; } /* kanal kutusu tam genişlik, Subscribe düğmesi altında kendi satırında */
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }

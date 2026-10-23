@@ -328,7 +328,9 @@ async function setupSubscribe(btn, p) {
     Object.assign(yt, { type: 'url', maxLength: 200, placeholder: 'https://youtube.com/@yourchannel', autocomplete: 'url' });
     wrap.append(el('span', null, 'Your YouTube channel'), yt,
       el('small', 'w-sub', 'Shown with your username on the Priority Listeners page after your order is delivered.'));
-    btn.before(wrap);
+    // the button isn't on the page yet when this runs: place the box above it as soon as it is
+    const place = () => (btn.isConnected ? btn.before(wrap) : requestAnimationFrame(place));
+    place();
   }
   btn.addEventListener('click', async () => {
     if (!readLogin()) {
