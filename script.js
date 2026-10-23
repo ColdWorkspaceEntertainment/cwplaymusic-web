@@ -147,6 +147,17 @@ function applyStatuses(products) {
     node.classList.add(`status--${product.status}`);
   });
 
+  // prices on the home / Early Access cards come from catalog.json, so they stay in step with the store
+  document.querySelectorAll('[data-price-for]').forEach((node) => {
+    const product = byKey[node.dataset.priceFor];
+    const c = product && creditPrice(product);
+    if (c) node.textContent = fmtCredits(c);
+  });
+  document.querySelectorAll('[data-price-note-for]').forEach((node) => {
+    const product = byKey[node.dataset.priceNoteFor];
+    if (product && creditPrice(product)) node.textContent = product.subscription ? 'CW Credits / month' : 'CW Credits';
+  });
+
   document.querySelectorAll('[data-status-note]').forEach((node) => {
     const key = node.dataset.statusNote;
     const product = byKey[key];
