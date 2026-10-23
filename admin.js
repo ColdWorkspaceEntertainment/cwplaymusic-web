@@ -328,47 +328,87 @@
   }
 
   // ---------- Support: questions from the Help page (Fizzy answers first)
-  function supportSection() {
-    const box = el('div');
-    box.append(el('p', 'w-sub', 'Loading…'));
-    supportCall('admin_tickets').then(({ ok, data }) => {
-      box.replaceChildren();
-      const list = (ok && data.tickets) || [];
-      if (!ok) return box.append(el('p', null, data.error || 'Support couldn\'t be loaded.'));
-      if (!list.length) return box.append(el('p', null, 'No questions right now.'));
-      const ul = el('ul', 'wallet-list');
-      list.forEach((t) => {
-        const li = el('li', 'ord');
-        const main = el('div', 'w-main');
-        main.append(el('span', 'w-amount', `#${t.id} · ${t.u}${t.human ? ' · needs you' : ''}`), el('span', 'w-sub', `${t.uid} · ${t.status} · ${when(t.updated)}`));
-        const chat = el('div', 'chat');
-        chat.append(chatThread(t.messages, 'owner', { user: t.u, fizzy: 'Fizzy', owner: 'You' }));
-        if (t.status !== 'closed') {
-          chat.append(replyRow('Reply', async (btn, text) => {
-            btn.disabled = true;
-            const r = await supportCall('admin_reply', { ticket: t.id, text });
-            showToast(r.ok ? 'Reply sent.' : (r.data.error || 'Couldn\'t send.'));
-            if (r.ok) render(); else btn.disabled = false;
-          }));
-        }
-        main.append(chat);
-        const right = el('div', 'adm-actions');
-        if (t.status !== 'closed') {
-          const close = el('button', 'shop-btn shop-btn--ghost', 'Close');
-          close.type = 'button';
-          close.addEventListener('click', async () => {
-            const r = await supportCall('admin_close', { ticket: t.id });
-            showToast(r.ok ? 'Closed.' : 'Couldn\'t close.');
-            if (r.ok) render();
-          });
-          right.append(close);
-        }
-        li.append(main, right);
-        ul.append(li);
-      });
-      box.append(ul);
+  // Support: questions from the Help page (Fizzy answers first). Refreshes by itself every 5 seconds;
+  // replies you're typing are kept.
+  const supportBox = el('div');
+  const supportDrafts = {};
+  let supportSig = '';
+  let supportTimer = null;
+
+  function drawSupport(list) {
+    const focused = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.ticket : null;
+    supportBox.replaceChildren();
+    if (!list.length) return supportBox.append(el('p', null, 'No questions right now.'));
+    const ul = el('ul', 'wallet-list');
+    list.forEach((t) => {
+      const li = el('li', 'ord');
+      const main = el('div', 'w-main');
+      main.append(el('span', 'w-amount', `#${t.id} · ${t.u}${t.human ? ' · needs you' : ''}`), el('span', 'w-sub', `${t.uid} · ${t.status} · ${when(t.updated)}`));
+      const chat = el('div', 'chat');
+      const thread = chatThread(t.messages, 'owner', { user: t.u, fizzy: 'Fizzy', owner: 'You' });
+      chat.append(thread);
+      if (t.status !== 'closed') {
+        const row = replyRow('Reply', async (btn, text) => {
+          btn.disabled = true;
+          const r = await supportCall('admin_reply', { ticket: t.id, text });
+          showToast(r.ok ? 'Reply sent.' : (r.data.error || 'Couldn\'t send.'));
+          btn.disabled = false;
+          if (r.ok) {
+            delete supportDrafts[t.id];
+            loadSupport(true);
+          }
+        });
+        const ta = row.querySelector('textarea');
+        ta.dataset.ticket = String(t.id);
+        ta.value = supportDrafts[t.id] || '';
+        ta.addEventListener('input', () => { supportDrafts[t.id] = ta.value; });
+        chat.append(row);
+        if (focused === String(t.id)) setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
+      }
+      main.append(chat);
+      const right = el('div', 'adm-actions');
+      if (t.status !== 'closed') {
+        const close = el('button', 'shop-btn shop-btn--ghost', 'Close');
+        close.type = 'button';
+        close.addEventListener('click', async () => {
+          const r = await supportCall('admin_close', { ticket: t.id });
+          showToast(r.ok ? 'Closed.' : 'Couldn\'t close.');
+          if (r.ok) loadSupport(true);
+        });
+        right.append(close);
+      }
+      li.append(main, right);
+      ul.append(li);
+      setTimeout(() => { thread.scrollTop = thread.scrollHeight; });
     });
-    return box;
+    supportBox.append(ul);
+  }
+
+  async function loadSupport(force = false) {
+    if (!supportBox.isConnected && !force) return;
+    const { ok, data } = await supportCall('admin_tickets');
+    if (!ok) {
+      supportBox.replaceChildren(el('p', null, data.error || 'Support couldn\'t be loaded.'));
+      return;
+    }
+    const list = data.tickets || [];
+    const sig = JSON.stringify(list.map((t) => [t.id, t.status, t.human, t.messages.length, (t.messages.at(-1) || {}).created]));
+    if (force || sig !== supportSig) {
+      if (!force && supportSig && list.some((t) => t.messages.length)) showToast('New support message.');
+      supportSig = sig;
+      drawSupport(list);
+    }
+  }
+
+  function supportSection() {
+    supportSig = '';
+    supportBox.replaceChildren(el('p', 'w-sub', 'Loading…'));
+    loadSupport(true);
+    if (!supportTimer) {
+      supportTimer = setInterval(() => { if (!document.hidden) loadSupport(); }, 5000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) loadSupport(); });
+    }
+    return supportBox;
   }
 
   // ---------- Orders (tracking + delivery) and reviews waiting for approval

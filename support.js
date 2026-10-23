@@ -96,7 +96,9 @@
   }
 
   let info = { ai: false, owner: 'available' };
+  let sending = false;
   async function send(text) {
+    sending = true;
     draft = '';
     messages = messages.concat([{ who: 'user', text, created: Date.now() / 1000 }]);
     draw(info);
@@ -108,6 +110,7 @@
       messages = messages.slice(0, -1);
       showToast(r.data.error || 'Your message couldn\'t be sent.');
     }
+    sending = false;
     draw(info);
   }
 
@@ -127,16 +130,26 @@
     human = !!(r.data.ticket && r.data.ticket.human);
     info = { ai: r.data.ai, owner: r.data.owner };
     draw(info);
-    // check for our replies every 20 seconds while the page is open
-    setInterval(async () => {
-      if (document.hidden) return;
+    // new replies show up by themselves: check every 4 seconds while the page is visible
+    const sig = (list) => list.map((m) => `${m.who}:${m.created}:${m.text.length}`).join('|');
+    let polling = false;
+    const poll = async () => {
+      if (document.hidden || polling || sending) return;
+      polling = true;
       const h = await supportCall('history');
-      if (h.ok && (h.data.messages || []).length !== messages.length) {
-        messages = h.data.messages;
-        human = !!(h.data.ticket && h.data.ticket.human);
+      polling = false;
+      if (!h.ok || sending) return;
+      const next = h.data.messages || [];
+      const nextHuman = !!(h.data.ticket && h.data.ticket.human);
+      if (sig(next) !== sig(messages) || nextHuman !== human || h.data.owner !== info.owner) {
+        messages = next;
+        human = nextHuman;
+        info.owner = h.data.owner;
         draw(info);
       }
-    }, 20000);
+    };
+    setInterval(poll, 4000);
+    document.addEventListener('visibilitychange', poll);
   }
   start();
 })();
