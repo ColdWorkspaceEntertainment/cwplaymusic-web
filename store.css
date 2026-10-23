@@ -639,6 +639,9 @@
 .disc-picks { display: grid; gap: 0.3rem; padding: 0.5rem 0.7rem; border-radius: 10px; background: rgba(0, 0, 0, 0.2); }
 @media (max-width: 820px) { .disc-grid { grid-template-columns: 1fr; } }
 
+.pv-audio { width: 100%; max-width: 420px; margin-top: 0.4rem; }
+.disc-card textarea { width: 100%; min-height: 54px; padding: 0.5rem 0.7rem; border: 1px solid var(--s-line); border-radius: 10px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }

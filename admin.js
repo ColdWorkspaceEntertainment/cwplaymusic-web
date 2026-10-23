@@ -328,6 +328,60 @@
   }
 
   // ---------- Support: questions from the Help page (Fizzy answers first)
+  // ---------- Priority Listeners previews: upload once, every active subscriber can listen in their wallet
+  function previewsAdmin() {
+    const box = el('div', 'disc');
+    box.append(el('p', 'w-sub', 'Loading…'));
+    creditsCall('admin_previews').then(({ ok, data }) => {
+      box.replaceChildren();
+      if (!ok) return box.append(el('p', null, data.error || 'Previews couldn\'t be loaded.'));
+      const subs = data.subscribers || [];
+      box.append(el('p', 'w-sub', `${subs.length} active subscriber${subs.length === 1 ? '' : 's'}${subs.length ? `: ${subs.join(', ')}` : ''}. They can listen in their wallet; subscribers with a CW PLAY account also get an email.`));
+      const card = el('div', 'pd-buybox disc-card');
+      const title = el('input'); Object.assign(title, { maxLength: 120, placeholder: 'e.g. New track — 30 s preview' });
+      const note = el('textarea'); Object.assign(note, { maxLength: 1000, rows: 2, placeholder: 'Note for listeners (optional): what to give feedback on…' });
+      const file = el('input'); Object.assign(file, { type: 'file', accept: '.mp3,.wav,.ogg,.m4a' });
+      const row = (label, input) => { const l = el('label', 'disc-row'); l.append(el('span', null, label), input); return l; };
+      const send = el('button', 'shop-btn', 'Upload preview');
+      send.type = 'button';
+      send.addEventListener('click', async () => {
+        const f = file.files[0];
+        if (!title.value.trim()) return showToast('Give the preview a title.');
+        if (!f) return showToast('Choose an audio file.');
+        if (f.size > 5 * 1024 * 1024) return showToast('Previews can be up to 5 MB. Export a shorter clip or a lower bitrate mp3.');
+        const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
+        send.disabled = true;
+        send.textContent = 'Uploading…';
+        const r = await creditsCall('admin_preview_upload', { title: title.value.trim(), note: note.value.trim(), name: f.name, data: b64 });
+        send.disabled = false;
+        send.textContent = 'Upload preview';
+        if (!r.ok) return showToast(r.data.error || 'Upload failed.');
+        showToast(`Preview uploaded.${r.data.mailed ? ` ${r.data.mailed} subscriber${r.data.mailed === 1 ? '' : 's'} got an email.` : ''}`);
+        render();
+      });
+      card.append(el('p', 'pd-price-label', 'New preview'), row('Title', title), row('Note', note), row('Audio file (mp3, wav, ogg, m4a · max 5 MB)', file), send);
+      box.append(card);
+      const list = data.previews || [];
+      if (list.length) {
+        const ul = el('ul', 'wallet-list');
+        list.forEach((pv) => {
+          const li = el('li');
+          const main = el('div', 'w-main');
+          main.append(el('span', null, pv.title), el('span', 'w-sub', `${when(pv.created)} · ${Math.max(1, Math.round(pv.size / 1024))} KB`));
+          const rm = el('button', 'shop-btn shop-btn--ghost', 'Remove');
+          rm.type = 'button';
+          rm.addEventListener('click', () => {
+            if (window.confirm(`Remove “${pv.title}”? Subscribers won't be able to listen to it anymore.`)) act(rm, 'admin_preview_remove', { id: pv.id }, 'Preview removed.');
+          });
+          li.append(main, rm);
+          ul.append(li);
+        });
+        box.append(ul);
+      }
+    });
+    return box;
+  }
+
   // ---------- Discounts (no coupons): store sale for special days, first purchase, cart bundle
   function discountsSection() {
     const box = el('div', 'disc');
@@ -371,7 +425,7 @@
         l.append(c, document.createTextNode(` ${p.name}`));
         picks.append(l);
       });
-      const syncPicks = () => { picks.hidden = sScope.value !== 'selected'; };
+      const syncPicks = () => { picks.style.display = sScope.value === 'selected' ? '' : 'none'; }; // (the CSS grid would override `hidden`)
       sScope.addEventListener('change', syncPicks);
       syncPicks();
       const sStart = el('input'); sStart.type = 'datetime-local'; sStart.value = toLocal(d.sale.start);
@@ -720,6 +774,7 @@
       section('Waiting for approval', pendingList(data.pending)),
       section('Support', supportSection()),
       section('Discounts', discountsSection()),
+      section('Priority Listeners previews', previewsAdmin()),
       section('Orders', ordersSection()),
       section('Reviews waiting', reviewsBox),
       section('Balances', balanceList(data.balances)),

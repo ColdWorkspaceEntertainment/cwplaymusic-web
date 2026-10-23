@@ -390,6 +390,51 @@
     const grid = el('div', 'wallet-grid');
     grid.append(balanceBox(data.balance), requestBox(pending));
     const subs = data.subs || [];
+    // Priority Listeners: previews to listen to here (only while the subscription is active)
+    const previewsSection = el('section', 'pd-section');
+    previewsSection.hidden = true;
+    creditsCall('previews').then(({ ok: good, data: pd }) => {
+      if (!good || !pd.listener) return;
+      previewsSection.hidden = false;
+      previewsSection.append(el('h2', null, 'Your previews'),
+        el('p', 'w-sub', 'Priority Listeners previews. They\'re personal: please don\'t share or re-upload them.'));
+      const list = pd.previews || [];
+      if (!list.length) {
+        previewsSection.append(el('p', null, 'No previews yet. You\'ll get an email (with a CW PLAY account) when the next one is ready.'));
+        return;
+      }
+      const ul = el('ul', 'wallet-list');
+      list.forEach((pv) => {
+        const li = el('li', 'ord');
+        const main = el('div', 'w-main');
+        main.append(el('span', 'w-amount', pv.title), el('span', 'w-sub', when(pv.created)));
+        if (pv.note) main.append(el('span', 'w-note', pv.note));
+        const play = el('button', 'shop-btn', 'Listen');
+        play.type = 'button';
+        play.prepend(icon('fa-solid fa-play'));
+        play.addEventListener('click', async () => {
+          play.disabled = true;
+          const r = await creditsCall('preview_file', { id: pv.id });
+          if (!r.ok) {
+            play.disabled = false;
+            return showToast(r.data.error || 'The preview couldn\'t be loaded.');
+          }
+          const bytes = Uint8Array.from(atob(r.data.data), (ch) => ch.charCodeAt(0));
+          const audio = el('audio');
+          audio.controls = true;
+          audio.setAttribute('controlsList', 'nodownload noplaybackrate');
+          audio.addEventListener('contextmenu', (e) => e.preventDefault());
+          audio.className = 'pv-audio';
+          audio.src = URL.createObjectURL(new Blob([bytes], { type: r.data.mime }));
+          play.replaceWith(audio);
+          audio.play().catch(() => {});
+        });
+        main.append(play);
+        li.append(main);
+        ul.append(li);
+      });
+      previewsSection.append(ul);
+    });
     const ordersSection = el('section', 'pd-section');
     ordersSection.append(el('h2', null, 'My orders'), el('p', 'w-sub', 'Loading…'));
     creditsCall('orders').then(({ ok: good, data: od }) => {
@@ -420,6 +465,7 @@
       userRow(data.user, data.owner),
       grid,
       ...(subs.length ? [listSection('Subscriptions', subs, '', subItem)] : []),
+      previewsSection,
       ordersSection,
       listSection('Your requests', data.requests || [], 'You haven\'t requested any CW Credits yet.', requestItem),
       listSection('Activity', data.history || [], 'No activity yet.', historyItem),
