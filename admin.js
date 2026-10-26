@@ -382,6 +382,53 @@
         });
         box.append(el('p', 'pd-price-label', 'Latest messages'), rl);
       }
+      // servers, reports, moderation log
+      const [sv, rp] = await Promise.all([call('admin_servers'), call('admin_reports')]);
+      const mk = (label, cls = 'shop-btn shop-btn--ghost acc-danger') => { const b = el('button', cls, label); b.type = 'button'; return b; };
+      const reports = (rp.ok && rp.data.reports) || [];
+      box.append(el('p', 'pd-price-label', `Reports waiting (${reports.length})`));
+      if (!reports.length) box.append(el('p', 'w-sub', 'No open reports.'));
+      const rpl = el('ul', 'wallet-list');
+      reports.forEach((x) => {
+        const li = el('li');
+        const main = el('div', 'w-main');
+        main.append(el('span', null, `⚑ ${x.kind} · reported by ${x.reporter} · ${when(x.created)}`), el('span', 'w-note', `“${x.reason}”`), el('span', 'w-sub', x.context));
+        const right = el('div', 'adm-actions');
+        const fix = { message: ['Delete message', 'admin_delete_message', { id: Number(x.target) }], server: ['Delete server', 'admin_delete_server', { server: Number(x.target) }],
+          user: ['Delete chat data', 'admin_purge_user', { user: x.target }] }[x.kind];
+        const d = mk(fix[0]);
+        d.addEventListener('click', async () => {
+          if (!window.confirm(`${fix[0]}? This can't be undone.`)) return;
+          await call(fix[1], fix[2]);
+          doIt(d, 'admin_report_resolve', { id: x.id }, 'Done, report closed.');
+        });
+        const close = mk('Dismiss', 'shop-btn shop-btn--ghost');
+        close.addEventListener('click', () => doIt(close, 'admin_report_resolve', { id: x.id }, 'Report dismissed.'));
+        right.append(d, close);
+        li.append(main, right);
+        rpl.append(li);
+      });
+      box.append(rpl);
+      const servers = (sv.ok && sv.data.servers) || [];
+      box.append(el('p', 'pd-price-label', `Servers (${servers.length})`));
+      const svl = el('ul', 'wallet-list');
+      servers.forEach((x) => {
+        const li = el('li');
+        const main = el('div', 'w-main');
+        main.append(el('span', null, `${x.name} · ${x.category}`), el('span', 'w-sub', `owner ${x.owner_name} · ${x.members} members · active ${when(x.last_at)}`));
+        if (x.descr) main.append(el('span', 'w-note', x.descr));
+        const d = mk('Delete server');
+        d.addEventListener('click', () => doIt(d, 'admin_delete_server', { server: x.id }, 'Server deleted.', `Delete ${x.name} for everyone? This can't be undone.`));
+        li.append(main, d);
+        svl.append(li);
+      });
+      box.append(svl);
+      const audit = (rp.ok && rp.data.audit) || [];
+      if (audit.length) {
+        const al = el('ul', 'wallet-list');
+        audit.forEach((a) => { const li = el('li'); li.append(el('span', 'w-sub', `${when(a.created)} · ${a.actor} · ${a.action} · ${a.target}`)); al.append(li); });
+        box.append(el('p', 'pd-price-label', 'Moderation log'), al);
+      }
     };
     const me_owner_id = () => (readLogin() || {}).id;
     load();
