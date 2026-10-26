@@ -328,6 +328,66 @@
   }
 
   // ---------- Support: questions from the Help page (Fizzy answers first)
+  // ---------- CW Chat: users, suspensions, message removal
+  function chatAdmin() {
+    const CHAT_API = CREDITS_API.replace('credits.php', 'chat.php'); // same server as the store
+    const call = (action, extra = {}) => apiCall(CHAT_API, action, extra);
+    const box = el('div', 'disc');
+    const load = async () => {
+      box.replaceChildren(el('p', 'w-sub', 'Loading…'));
+      const r = await call('admin_overview');
+      box.replaceChildren();
+      if (!r.ok) return box.append(el('p', null, r.data.error || 'CW Chat couldn\'t be loaded.'));
+      const doIt = async (btn, action, extra, msg, ask) => {
+        if (ask && !window.confirm(ask)) return;
+        btn.disabled = true;
+        const x = await call(action, extra);
+        showToast(x.ok ? msg : (x.data.error || 'Failed.'));
+        load();
+      };
+      const users = r.data.users || [];
+      box.append(el('p', 'w-sub', `${users.length} people have used CW Chat. Suspended people can't reach you: they get "Your communication has been blocked" and you get one Discord message that updates with each new attempt.`));
+      const ul = el('ul', 'wallet-list');
+      users.forEach((u) => {
+        const li = el('li', 'ord');
+        const main = el('div', 'w-main');
+        main.append(el('span', 'w-amount', `${u.name}${u.suspended ? ' · 🔴 suspended' : ''}`), el('span', 'w-sub', `${u.id} · ${u.messages} messages · last seen ${when(u.seen)}`));
+        if (u.suspended && u.attempts) main.append(el('span', 'w-note', `${u.attempts} attempt${u.attempts === 1 ? '' : 's'} to reach you · last: “${u.last_text}” (${when(u.last_at)})`));
+        const right = el('div', 'adm-actions');
+        const sus = el('button', 'shop-btn shop-btn--ghost', u.suspended ? 'Unsuspend' : 'Suspend');
+        sus.type = 'button';
+        sus.addEventListener('click', () => doIt(sus, u.suspended ? 'admin_unsuspend' : 'admin_suspend', { user: u.id }, u.suspended ? 'Unsuspended.' : 'Suspended.',
+          u.suspended ? '' : `Suspend ${u.name}? They won't be able to message you on CW Chat.`));
+        const del = el('button', 'shop-btn shop-btn--ghost acc-danger', 'Delete chat data');
+        del.type = 'button';
+        del.addEventListener('click', () => doIt(del, 'admin_purge_user', { user: u.id }, 'Chat data deleted.',
+          `Delete all of ${u.name}'s CW Chat data (their conversations, messages and profile)? This can't be undone.`));
+        if (u.id !== me_owner_id(r)) right.append(sus, del);
+        li.append(main, right);
+        ul.append(li);
+      });
+      box.append(ul);
+      const recent = r.data.recent || [];
+      if (recent.length) {
+        const rl = el('ul', 'wallet-list');
+        recent.forEach((m) => {
+          const li = el('li');
+          const main = el('div', 'w-main');
+          main.append(el('span', null, m.name || m.author), el('span', 'w-sub', when(m.created)), el('span', 'w-note', m.text));
+          const rm = el('button', 'shop-btn shop-btn--ghost', 'Delete');
+          rm.type = 'button';
+          rm.addEventListener('click', () => doIt(rm, 'admin_delete_message', { id: m.id }, 'Message deleted.', 'Delete this message?'));
+          li.append(main, rm);
+          rl.append(li);
+        });
+        box.append(el('p', 'pd-price-label', 'Latest messages'), rl);
+      }
+    };
+    const me_owner_id = () => (readLogin() || {}).id;
+    load();
+    return box;
+  }
+
   // ---------- Priority Listeners previews: upload once, every active subscriber can listen in their wallet
   function previewsAdmin() {
     const box = el('div', 'disc');
@@ -775,6 +835,7 @@
       section('Support', supportSection()),
       section('Discounts', discountsSection()),
       section('Priority Listeners previews', previewsAdmin()),
+      section('CW Chat', chatAdmin()),
       section('Orders', ordersSection()),
       section('Reviews waiting', reviewsBox),
       section('Balances', balanceList(data.balances)),
