@@ -692,6 +692,10 @@
 .cc-call .shop-btn { min-height: 38px; padding: 0.35rem 1rem; }
 .acc-hangup { background: #d63c2f !important; border-color: #d63c2f !important; color: #fff !important; }
 
+.cc-group-head { margin-top: 0.6rem; justify-content: space-between; }
+.cc-group-head .pd-price-label { margin: 0; }
+.cc-call + .cc-call { bottom: 9rem; }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }
