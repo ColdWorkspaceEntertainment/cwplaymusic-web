@@ -328,122 +328,6 @@
   }
 
   // ---------- Support: questions from the Help page (Fizzy answers first)
-  // ---------- CW Chat: users, suspensions, message removal
-  function chatAdmin() {
-    const CHAT_API = CREDITS_API.replace('credits.php', 'chat.php'); // same server as the store
-    const call = (action, extra = {}) => apiCall(CHAT_API, action, extra);
-    const box = el('div', 'disc');
-    // search users and servers by name or ID (searched on the server, so it works with many people)
-    const finder = el('input', 'adm-search');
-    Object.assign(finder, { type: 'search', placeholder: 'Search users and servers (name or ID)…' });
-    let findTimer;
-    finder.addEventListener('input', () => { clearTimeout(findTimer); findTimer = setTimeout(() => load(), 350); });
-    const load = async () => {
-      const typing = document.activeElement === finder;
-      const term = finder.value.trim();
-      box.replaceChildren(finder, el('p', 'w-sub', 'Loading…'));
-      const r = await call('admin_overview', { q: term });
-      box.replaceChildren(finder);
-      if (typing) finder.focus();
-      if (term) box.append(el('p', 'w-sub', `Results for “${term}”. Clear the search to see everyone.`));
-      if (!r.ok) return box.append(el('p', null, r.data.error || 'CW Chat couldn\'t be loaded.'));
-      const doIt = async (btn, action, extra, msg, ask) => {
-        if (ask && !window.confirm(ask)) return;
-        btn.disabled = true;
-        const x = await call(action, extra);
-        showToast(x.ok ? msg : (x.data.error || 'Failed.'));
-        load();
-      };
-      const users = r.data.users || [];
-      box.append(el('p', 'w-sub', `${term ? `${users.length} matching people.` : `${users.length} people have used CW Chat.`} Suspended people can't reach you: they get "Your communication has been blocked" and you get one Discord message that updates with each new attempt.`));
-      const ul = el('ul', 'wallet-list');
-      users.forEach((u) => {
-        const li = el('li', 'ord');
-        const main = el('div', 'w-main');
-        main.append(el('span', 'w-amount', `${u.name}${u.suspended ? ' · 🔴 suspended' : ''}`), el('span', 'w-sub', `${u.id} · ${u.messages} messages · last seen ${when(u.seen)}`));
-        if (u.suspended && u.attempts) main.append(el('span', 'w-note', `${u.attempts} attempt${u.attempts === 1 ? '' : 's'} to reach you · last: “${u.last_text}” (${when(u.last_at)})`));
-        const right = el('div', 'adm-actions');
-        const sus = el('button', 'shop-btn shop-btn--ghost', u.suspended ? 'Unsuspend' : 'Suspend');
-        sus.type = 'button';
-        sus.addEventListener('click', () => doIt(sus, u.suspended ? 'admin_unsuspend' : 'admin_suspend', { user: u.id }, u.suspended ? 'Unsuspended.' : 'Suspended.',
-          u.suspended ? '' : `Suspend ${u.name}? They won't be able to message you on CW Chat.`));
-        const del = el('button', 'shop-btn shop-btn--ghost acc-danger', 'Delete chat data');
-        del.type = 'button';
-        del.addEventListener('click', () => doIt(del, 'admin_purge_user', { user: u.id }, 'Chat data deleted.',
-          `Delete all of ${u.name}'s CW Chat data (their conversations, messages and profile)? This can't be undone.`));
-        if (u.id !== me_owner_id(r)) right.append(sus, del);
-        li.append(main, right);
-        ul.append(li);
-      });
-      box.append(ul);
-      const recent = r.data.recent || [];
-      if (recent.length) {
-        const rl = el('ul', 'wallet-list');
-        recent.forEach((m) => {
-          const li = el('li');
-          const main = el('div', 'w-main');
-          main.append(el('span', null, m.name || m.author), el('span', 'w-sub', when(m.created)), el('span', 'w-note', m.text));
-          const rm = el('button', 'shop-btn shop-btn--ghost', 'Delete');
-          rm.type = 'button';
-          rm.addEventListener('click', () => doIt(rm, 'admin_delete_message', { id: m.id }, 'Message deleted.', 'Delete this message?'));
-          li.append(main, rm);
-          rl.append(li);
-        });
-        box.append(el('p', 'pd-price-label', 'Latest messages'), rl);
-      }
-      // servers, reports, moderation log
-      const [sv, rp] = await Promise.all([call('admin_servers', { q: term }), call('admin_reports')]);
-      const mk = (label, cls = 'shop-btn shop-btn--ghost acc-danger') => { const b = el('button', cls, label); b.type = 'button'; return b; };
-      const reports = (rp.ok && rp.data.reports) || [];
-      box.append(el('p', 'pd-price-label', `Reports waiting (${reports.length})`));
-      if (!reports.length) box.append(el('p', 'w-sub', 'No open reports.'));
-      const rpl = el('ul', 'wallet-list');
-      reports.forEach((x) => {
-        const li = el('li');
-        const main = el('div', 'w-main');
-        main.append(el('span', null, `⚑ ${x.kind} · reported by ${x.reporter} · ${when(x.created)}`), el('span', 'w-note', `“${x.reason}”`), el('span', 'w-sub', x.context));
-        const right = el('div', 'adm-actions');
-        const fix = { message: ['Delete message', 'admin_delete_message', { id: Number(x.target) }], server: ['Delete server', 'admin_delete_server', { server: Number(x.target) }],
-          user: ['Delete chat data', 'admin_purge_user', { user: x.target }] }[x.kind];
-        const d = mk(fix[0]);
-        d.addEventListener('click', async () => {
-          if (!window.confirm(`${fix[0]}? This can't be undone.`)) return;
-          await call(fix[1], fix[2]);
-          doIt(d, 'admin_report_resolve', { id: x.id }, 'Done, report closed.');
-        });
-        const close = mk('Dismiss', 'shop-btn shop-btn--ghost');
-        close.addEventListener('click', () => doIt(close, 'admin_report_resolve', { id: x.id }, 'Report dismissed.'));
-        right.append(d, close);
-        li.append(main, right);
-        rpl.append(li);
-      });
-      box.append(rpl);
-      const servers = (sv.ok && sv.data.servers) || [];
-      box.append(el('p', 'pd-price-label', `Servers (${servers.length})`));
-      const svl = el('ul', 'wallet-list');
-      servers.forEach((x) => {
-        const li = el('li');
-        const main = el('div', 'w-main');
-        main.append(el('span', null, `${x.name} · ${x.category}`), el('span', 'w-sub', `owner ${x.owner_name} · ${x.members} members · active ${when(x.last_at)}`));
-        if (x.descr) main.append(el('span', 'w-note', x.descr));
-        const d = mk('Delete server');
-        d.addEventListener('click', () => doIt(d, 'admin_delete_server', { server: x.id }, 'Server deleted.', `Delete ${x.name} for everyone? This can't be undone.`));
-        li.append(main, d);
-        svl.append(li);
-      });
-      box.append(svl);
-      const audit = (rp.ok && rp.data.audit) || [];
-      if (audit.length) {
-        const al = el('ul', 'wallet-list');
-        audit.forEach((a) => { const li = el('li'); li.append(el('span', 'w-sub', `${when(a.created)} · ${a.actor} · ${a.action} · ${a.target}`)); al.append(li); });
-        box.append(el('p', 'pd-price-label', 'Moderation log'), al);
-      }
-    };
-    const me_owner_id = () => (readLogin() || {}).id;
-    load();
-    return box;
-  }
-
   // ---------- Priority Listeners previews: upload once, every active subscriber can listen in their wallet
   function previewsAdmin() {
     const box = el('div', 'disc');
@@ -891,7 +775,6 @@
       section('Support', supportSection()),
       section('Discounts', discountsSection()),
       section('Priority Listeners previews', previewsAdmin()),
-      section('CW Chat', chatAdmin()),
       section('Orders', ordersSection()),
       section('Reviews waiting', reviewsBox),
       section('Balances', balanceList(data.balances)),
