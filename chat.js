@@ -138,6 +138,11 @@
         const rep = btn('⚑');
         rep.title = 'Report';
         rep.addEventListener('click', () => report('user', info.other.id, info.other.name));
+        if (!info.blocked_by_me && !info.suspended) {
+          const ph = btn('📞 Call');
+          ph.addEventListener('click', () => startCall(view.id, info.other.name));
+          acts.append(ph);
+        }
         acts.append(blk, rep);
       }
       top.append(acts);
@@ -408,6 +413,7 @@
     const r = await call('sync', params);
     if (!r.ok || JSON.stringify(view) !== want) return;
     data = { dms: r.data.dms || [], servers: r.data.servers || [] };
+    if (r.data.incoming && !vc.id && r.data.incoming.id !== vc.dismissed) showIncoming(r.data.incoming);
     drawRail(); drawSide();
     if ((view.type === 'dm' || view.type === 'channel') && r.data.messages) {
       if (r.data.messages.length) {
@@ -423,6 +429,188 @@
       pane.replaceChildren(el('p', null, 'This channel or server isn\'t available anymore.'));
     }
   }
+
+  // ---------------------------------------------------------------- DM voice calls (WebRTC, peer to peer; the server only passes connection messages)
+  const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
+  const vc = { id: 0, role: '', name: '', pc: null, local: null, since: 0, poll: null, tick: null, started: 0, iceQueue: [], remoteSet: false, dismissed: 0, ring: null };
+  const remoteAudio = el('audio');
+  remoteAudio.autoplay = true;
+  const card = el('div', 'cc-call');
+  card.hidden = true;
+  document.body.append(card, remoteAudio);
+
+  function ringtone(on) {
+    if (vc.ring) { vc.ring.stop(); vc.ring = null; }
+    if (!on) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const gain = ctx.createGain(); gain.gain.value = 0.08; gain.connect(ctx.destination);
+      let alive = true;
+      const beep = () => {
+        if (!alive) return;
+        [440, 480].forEach((f) => { const o = ctx.createOscillator(); o.frequency.value = f; o.connect(gain); o.start(); o.stop(ctx.currentTime + 0.8); });
+        setTimeout(beep, 2500);
+      };
+      beep();
+      vc.ring = { stop: () => { alive = false; ctx.close(); } };
+    } catch (err) { /* no sound available */ }
+  }
+
+  function drawCard(status, buttons) {
+    card.hidden = false;
+    const t = el('div', 'cc-call-text');
+    t.append(el('strong', null, `📞 ${vc.name}`), el('span', 'w-sub cc-call-status', status));
+    const row = el('div', 'adm-actions');
+    buttons.forEach(([label, cls, fn]) => { const b = btn(label, cls); b.addEventListener('click', fn); row.append(b); });
+    card.replaceChildren(t, row);
+  }
+  const setStatus = (text) => { const x = card.querySelector('.cc-call-status'); if (x) x.textContent = text; };
+
+  function cleanup(message) {
+    clearInterval(vc.poll); clearInterval(vc.tick); ringtone(false);
+    if (vc.pc) vc.pc.close();
+    if (vc.local) vc.local.getTracks().forEach((tr) => tr.stop());
+    remoteAudio.srcObject = null;
+    Object.assign(vc, { id: 0, role: '', pc: null, local: null, since: 0, poll: null, tick: null, started: 0, iceQueue: [], remoteSet: false });
+    if (message) { drawCard(message, []); setTimeout(() => { if (!vc.id) card.hidden = true; }, 3500); } else card.hidden = true;
+  }
+
+  async function hangUp() {
+    const id = vc.id;
+    cleanup('Call ended');
+    if (id) await call_('call_end', { call: id });
+  }
+  const call_ = (action, extra) => apiCall(CHAT_API, action, extra);
+
+  function controls() {
+    let muted = false;
+    const muteBtn = ['Mute', 'shop-btn shop-btn--ghost', (e) => {
+      muted = !muted;
+      vc.local.getAudioTracks().forEach((tr) => { tr.enabled = !muted; });
+      e.target.textContent = muted ? 'Unmute' : 'Mute';
+    }];
+    return [muteBtn, ['Hang up', 'shop-btn acc-hangup', hangUp]];
+  }
+
+  async function getMic() {
+    try {
+      return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
+    } catch (err) {
+      showToast('Microphone access is needed for calls. Allow it in your browser and try again.');
+      return null;
+    }
+  }
+
+  function makePc() {
+    const pc = new RTCPeerConnection({ iceServers: ICE });
+    pc.onicecandidate = (e) => { if (e.candidate && vc.id) call_('call_signal', { call: vc.id, kind: 'ice', data: JSON.stringify(e.candidate) }); };
+    pc.ontrack = (e) => { remoteAudio.srcObject = e.streams[0]; remoteAudio.play().catch(() => {}); };
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'connected' && !vc.started) {
+        vc.started = Date.now();
+        ringtone(false);
+        drawCard('Connected · 0:00', controls());
+        vc.tick = setInterval(() => {
+          const sec = Math.floor((Date.now() - vc.started) / 1000);
+          setStatus(`Connected · ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`);
+        }, 1000);
+      }
+      if (pc.connectionState === 'failed') {
+        const id = vc.id;
+        cleanup('Couldn\'t connect. Your network may be blocking direct calls.');
+        if (id) call_('call_end', { call: id });
+      }
+    };
+    vc.local.getTracks().forEach((tr) => pc.addTrack(tr, vc.local));
+    return pc;
+  }
+
+  async function addIce(c) {
+    if (!vc.remoteSet) { vc.iceQueue.push(c); return; }
+    try { await vc.pc.addIceCandidate(c); } catch (err) { /* stale candidate */ }
+  }
+
+  async function pollCall() {
+    if (!vc.id) return;
+    const r = await call_('call_poll', { call: vc.id, since: vc.since });
+    if (!r.ok || !vc.id) return;
+    for (const sg of r.data.signals) {
+      vc.since = sg.id;
+      const d = JSON.parse(sg.data);
+      if (sg.kind === 'offer' && vc.role === 'callee') {
+        await vc.pc.setRemoteDescription(d);
+        vc.remoteSet = true;
+        const ans = await vc.pc.createAnswer();
+        await vc.pc.setLocalDescription(ans);
+        await call_('call_signal', { call: vc.id, kind: 'answer', data: JSON.stringify(ans) });
+        for (const c of vc.iceQueue.splice(0)) await addIce(c);
+      } else if (sg.kind === 'answer' && vc.role === 'caller') {
+        await vc.pc.setRemoteDescription(d);
+        vc.remoteSet = true;
+        for (const c of vc.iceQueue.splice(0)) await addIce(c);
+      } else if (sg.kind === 'ice') {
+        await addIce(d);
+      }
+    }
+    const ended = { declined: 'Call declined', missed: 'No answer', canceled: 'Call canceled', ended: 'Call ended' }[r.data.state];
+    if (ended) cleanup(ended);
+    else if (r.data.state === 'active' && vc.role === 'caller' && !vc.started) setStatus('Connecting…');
+  }
+
+  function privacyOk() {
+    try {
+      if (localStorage.getItem('cw_call_notice')) return true;
+      const yes = window.confirm('Voice calls connect your device directly to the other person\'s device. The audio isn\'t recorded or stored, but the other person\'s device can see your IP address. Continue?');
+      if (yes) localStorage.setItem('cw_call_notice', '1');
+      return yes;
+    } catch (err) { return true; }
+  }
+
+  async function startCall(dmId, name) {
+    if (vc.id) return showToast('You\'re already in a vc.');
+    if (!privacyOk()) return;
+    const mic = await getMic();
+    if (!mic) return;
+    const r = await call_('call_start', { dm: dmId });
+    if (!r.ok) { mic.getTracks().forEach((tr) => tr.stop()); return showToast(r.data.error); }
+    Object.assign(vc, { id: r.data.call, role: 'caller', name, local: mic, since: 0 });
+    vc.pc = makePc();
+    const offer = await vc.pc.createOffer();
+    await vc.pc.setLocalDescription(offer);
+    await call_('call_signal', { call: vc.id, kind: 'offer', data: JSON.stringify(offer) });
+    drawCard('Calling…', [['Cancel', 'shop-btn acc-hangup', hangUp]]);
+    vc.poll = setInterval(pollCall, 1000);
+  }
+
+  function showIncoming(inc) {
+    if (vc.id) return;
+    Object.assign(vc, { id: inc.id, role: 'callee', name: inc.from, since: 0 });
+    ringtone(true);
+    drawCard('is calling you', [
+      ['Accept', 'shop-btn', async () => {
+        if (!privacyOk()) return decline();
+        const mic = await getMic();
+        if (!mic) return decline();
+        ringtone(false);
+        const r = await call_('call_answer', { call: vc.id });
+        if (!r.ok) { mic.getTracks().forEach((tr) => tr.stop()); return cleanup(r.data.error); }
+        vc.local = mic;
+        vc.pc = makePc();
+        drawCard('Connecting…', controls());
+        vc.poll = setInterval(pollCall, 1000);
+        pollCall();
+      }],
+      ['Decline', 'shop-btn acc-hangup', () => decline()],
+    ]);
+    const decline = async () => { const id = vc.id; vc.dismissed = id; cleanup(''); await call_('call_end', { call: id }); };
+    // stop ringing if the caller gives up
+    vc.poll = setInterval(async () => {
+      if (vc.pc || !vc.id) return;
+      const r = await call_('call_poll', { call: vc.id, since: 0 });
+      if (r.ok && r.data.state !== 'ringing' && !vc.pc) { vc.dismissed = vc.id; cleanup(r.data.state === 'canceled' ? 'Missed call' : ''); }
+    }, 2000);
+  }
+  window.addEventListener('beforeunload', () => { if (vc.id) call_('call_end', { call: vc.id }); });
 
   async function start() {
     if (!readLogin()) {

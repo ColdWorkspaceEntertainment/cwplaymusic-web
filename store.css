@@ -685,6 +685,13 @@
 
 .adm-search { width: 100%; min-height: 44px; padding: 0.5rem 1rem; border: 1px solid var(--s-line); border-radius: 999px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; }
 
+/* ---------- CW Chat: voice calls ---------- */
+.cc-call { position: fixed; right: 1.2rem; bottom: 1.2rem; z-index: 60; display: grid; gap: 0.6rem; min-width: 260px; max-width: calc(100vw - 2.4rem); padding: 1rem 1.1rem; border-radius: 16px; background: #13392b; color: #fff; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); }
+.cc-call[hidden] { display: none; }
+.cc-call-text { display: grid; gap: 0.15rem; }
+.cc-call .shop-btn { min-height: 38px; padding: 0.35rem 1rem; }
+.acc-hangup { background: #d63c2f !important; border-color: #d63c2f !important; color: #fff !important; }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }
