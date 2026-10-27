@@ -621,75 +621,299 @@
         vc.remoteSet = true;
         for (const c of vc.iceQueue.splice(0)) await addIce(c);
       } else if (sg.kind === 'ice') {
-        const candidate = new RTCIceCandidate(d);
-        await addIce(candidate);
+        await addIce(d);
       }
     }
-    if (vc.id) {
-      clearTimeout(vc.poll);
-      vc.poll = setTimeout(pollCall, vc.started ? 1000 : 2000);
-    }
+    const ended = { declined: 'Call declined', missed: 'No answer', canceled: 'Call canceled', ended: 'Call ended' }[r.data.state];
+    if (ended) cleanup(ended);
+    else if (r.data.state === 'active' && vc.role === 'caller' && !vc.started) setStatus('Connecting…');
   }
 
-  async function startCall(dmId, recipientName) {
-    if (vc.id) return;
-    const local = await getMic();
-    if (!local) return;
-    
+  function privacyOk() {
+    try {
+      if (localStorage.getItem('cw_call_notice')) return true;
+      const yes = window.confirm('Voice calls connect your device directly to the other person\'s device. The audio isn\'t recorded or stored, but the other person\'s device can see your IP address. Continue?');
+      if (yes) localStorage.setItem('cw_call_notice', '1');
+      return yes;
+    } catch (err) { return true; }
+  }
+
+  async function startCall(dmId, name) {
+    if (vc.id) return showToast('You\'re already in a vc.');
+    if (!privacyOk()) return;
+    const mic = await getMic();
+    if (!mic) return;
     const r = await call_('call_start', { dm: dmId });
-    if (!r.ok) {
-      local.getTracks().forEach(tr => tr.stop());
-      return showToast(r.data.error || 'Could not start call.');
-    }
-
-    Object.assign(vc, {
-      id: r.data.call,
-      role: 'caller',
-      name: recipientName,
-      local: local,
-      since: 0,
-      started: 0,
-      iceQueue: [],
-      remoteSet: false
-    });
-
+    if (!r.ok) { mic.getTracks().forEach((tr) => tr.stop()); return showToast(r.data.error); }
+    Object.assign(vc, { id: r.data.call, role: 'caller', name, local: mic, since: 0 });
     vc.pc = makePc();
     const offer = await vc.pc.createOffer();
     await vc.pc.setLocalDescription(offer);
     await call_('call_signal', { call: vc.id, kind: 'offer', data: JSON.stringify(offer) });
-
+    drawCard('Calling…', [['Cancel', 'shop-btn acc-hangup', hangUp]]);
     ringtone('out');
-    drawCard('Ringing…', [['Cancel', 'shop-btn acc-hangup', hangUp]]);
-    vc.poll = setTimeout(pollCall, 1000);
+    vc.poll = setInterval(pollCall, 1000);
   }
 
-  async function showIncoming(inc) {
-    if (vc.id || inc.id === vc.dismissed) return;
-    Object.assign(vc, {
-      id: inc.id,
-      role: 'callee',
-      name: inc.name,
-      since: 0,
-      started: 0,
-      iceQueue: [],
-      remoteSet: false
-    });
+  function showIncoming(inc) {
+    if (vc.id) return;
+    Object.assign(vc, { id: inc.id, role: 'callee', name: inc.from, since: 0 });
     ringtone('in');
-    drawCard('Incoming call…', [
+    drawCard('is calling you', [
       ['Accept', 'shop-btn', async () => {
+        if (!privacyOk()) return decline();
+        const mic = await getMic();
+        if (!mic) return decline();
         ringtone(false);
-        const local = await getMic();
-        if (!local) { hangUp(); return; }
-        vc.local = local;
+        const r = await call_('call_answer', { call: vc.id });
+        if (!r.ok) { mic.getTracks().forEach((tr) => tr.stop()); return cleanup(r.data.error); }
+        vc.local = mic;
         vc.pc = makePc();
         drawCard('Connecting…', controls());
-        vc.poll = setTimeout(pollCall, 500);
+        vc.poll = setInterval(pollCall, 1000);
+        pollCall();
       }],
-      ['Decline', 'shop-btn acc-hangup', async () => {
-        vc.dismissed = vc.id;
-        cleanup('Missed call');
-        await call_('call_end', { call: vc.id });
-      }]
+      ['Decline', 'shop-btn acc-hangup', () => decline()],
     ]);
+    const decline = async () => { const id = vc.id; vc.dismissed = id; cleanup(''); await call_('call_end', { call: id }); };
+    // stop ringing if the caller gives up
+    vc.poll = setInterval(async () => {
+      if (vc.pc || !vc.id) return;
+      const r = await call_('call_poll', { call: vc.id, since: 0 });
+      if (r.ok && r.data.state !== 'ringing' && !vc.pc) { vc.dismissed = vc.id; cleanup(r.data.state === 'canceled' ? 'Missed call' : ''); }
+    }, 2000);
   }
+  window.addEventListener('beforeunload', () => { if (vc.id) call_('call_end', { call: vc.id }); });
+
+  // ---------------------------------------------------------------- groups: create + manage
+  function personPicker(onPick, exclude = () => false) {
+    const box = el('div', 'cc-set');
+    const q = el('input'); Object.assign(q, { type: 'search', placeholder: 'Find someone to add…' });
+    const res = el('div', 'cc-results');
+    let t;
+    q.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(async () => {
+        res.replaceChildren();
+        if (q.value.trim().length < 2) return;
+        const r = await call('search', { q: q.value.trim() });
+        (r.ok ? r.data.users : []).filter((u) => !exclude(u.id)).forEach((u) => {
+          const b = btn(`＋ ${u.name}`, 'cc-item');
+          b.addEventListener('click', () => { onPick(u); q.value = ''; res.replaceChildren(); });
+          res.append(b);
+        });
+      }, 300);
+    });
+    box.append(q, res);
+    return box;
+  }
+
+  function drawGroupNew() {
+    const picked = new Map();
+    const name = el('input'); Object.assign(name, { maxLength: 40, placeholder: 'Group name' });
+    const chips = el('div', 'cc-row');
+    const drawChips = () => {
+      chips.replaceChildren();
+      if (!picked.size) chips.append(el('span', 'w-sub', 'No one added yet.'));
+      picked.forEach((n, id) => { const c = btn(`${n} ✕`); c.addEventListener('click', () => { picked.delete(id); drawChips(); }); chips.append(c); });
+    };
+    const picker = personPicker((u) => { if (picked.size >= 9) return showToast('A group can have up to 10 people (you + 9).'); picked.set(u.id, u.name); drawChips(); }, (id) => picked.has(id));
+    const make = btn('Create group', 'shop-btn');
+    make.addEventListener('click', async () => {
+      const r = await call('group_create', { name: name.value.trim(), members: [...picked.keys()] });
+      if (!r.ok) return showToast(r.data.error);
+      showToast('Group created.');
+      await refresh();
+      go({ type: 'group', id: r.data.group });
+    });
+    drawChips();
+    pane.replaceChildren(el('strong', null, '👥 New group'), el('span', 'w-sub', 'Only you can add people to your group. Up to 10 people; voice calls up to 5 at once.'),
+      name, el('p', 'pd-price-label', 'People'), chips, picker, make);
+    name.focus();
+  }
+
+  async function drawGroupManage() {
+    const r = await call('group_info', { group: view.id });
+    if (!r.ok) return pane.replaceChildren(el('p', null, r.data.error));
+    const { group: g, members, max } = r.data;
+    const owner = g.owner === me.id || me.owner;
+    const act = async (action, extra, msg, ask) => {
+      if (ask && !window.confirm(ask)) return null;
+      const x = await call(action, { group: g.id, ...extra });
+      showToast(x.ok ? msg : (x.data.error || 'Failed.'));
+      if (x.ok) await refresh();
+      return x;
+    };
+    const parts = [el('strong', null, `👥 ${g.name}`), el('span', 'w-sub', `${members.length}/${max} people`)];
+    if (owner) {
+      const name = el('input'); Object.assign(name, { maxLength: 40, value: g.name });
+      const save = btn('Rename', 'shop-btn');
+      save.addEventListener('click', async () => { if ((await act('group_rename', { name: name.value.trim() }, 'Renamed.'))?.ok) drawGroupManage(); });
+      const row = el('div', 'cc-row'); row.append(name, save); parts.push(row);
+    }
+    const list = el('div', 'cc-set');
+    members.forEach((m) => {
+      const row = el('div', 'cc-row');
+      const nm = el('span', null, `${m.name}${m.id === g.owner ? ' · 👑 owner' : ''}${m.id === me.id ? ' (you)' : ''}`);
+      nm.prepend(dot(m.status));
+      row.append(nm);
+      if (owner && m.id !== g.owner) {
+        const rm = btn('Remove');
+        rm.addEventListener('click', async () => { if ((await act('group_remove', { user: m.id }, 'Removed.', `Remove ${m.name} from the group?`))?.ok) drawGroupManage(); });
+        row.append(rm);
+      }
+      list.append(row);
+    });
+    parts.push(el('p', 'pd-price-label', 'Members'), list);
+    if (owner && members.length < max) {
+      parts.push(el('p', 'pd-price-label', 'Add people'), personPicker(async (u) => { if ((await act('group_add', { user: u.id }, `${u.name} added.`))?.ok) drawGroupManage(); },
+        (id) => members.some((m) => m.id === id)));
+    }
+    const danger = el('div', 'adm-actions');
+    const back = btn('← Back to chat'); back.addEventListener('click', () => go({ type: 'group', id: g.id }));
+    const leave = btn('Leave group', 'shop-btn shop-btn--ghost acc-danger');
+    leave.addEventListener('click', async () => { if ((await act('group_leave', {}, 'You left the group.', `Leave ${g.name}?`))?.ok) go({ type: 'home' }); });
+    danger.append(back, leave);
+    if (owner) {
+      const del = btn('Delete group', 'shop-btn shop-btn--ghost acc-danger');
+      del.addEventListener('click', async () => { if ((await act('group_delete', {}, 'Group deleted.', `Delete ${g.name} for everyone?`))?.ok) go({ type: 'home' }); });
+      danger.append(del);
+    }
+    parts.push(danger);
+    pane.replaceChildren(...parts);
+  }
+
+  // ---------------------------------------------------------------- group voice calls (everyone connects to everyone; the newcomer sends offers)
+  const gc = { call: 0, group: 0, name: '', local: null, since: 0, poll: null, peers: new Map(), muted: false };
+  const gcard = el('div', 'cc-call');
+  gcard.hidden = true;
+  document.body.append(gcard);
+
+  function drawGcCard(people) {
+    gcard.hidden = false;
+    const t = el('div', 'cc-call-text');
+    t.append(el('strong', null, `🔊 ${gc.name}`), el('span', 'w-sub', people.length ? `With ${people.map((p) => p.name).join(', ')}` : 'Waiting for others to join…'));
+    const row = el('div', 'adm-actions');
+    const mute = btn(gc.muted ? 'Unmute' : 'Mute');
+    mute.addEventListener('click', () => { gc.muted = !gc.muted; gc.local.getAudioTracks().forEach((tr) => { tr.enabled = !gc.muted; }); mute.textContent = gc.muted ? 'Unmute' : 'Mute'; (gc.muted ? sfx.mute : sfx.unmute)(); });
+    const leave = btn('Leave call', 'shop-btn acc-hangup');
+    leave.addEventListener('click', gcLeave);
+    row.append(mute, leave);
+    gcard.replaceChildren(t, row);
+  }
+
+  function gcPeer(uid) {
+    if (gc.peers.has(uid)) return gc.peers.get(uid);
+    const pc = new RTCPeerConnection({ iceServers: ICE });
+    const audio = el('audio'); audio.autoplay = true; document.body.append(audio);
+    const peer = { pc, audio, remoteSet: false, ice: [] };
+    pc.onicecandidate = (e) => { if (e.candidate && gc.call) call_('gcall_signal', { call: gc.call, to: uid, kind: 'ice', data: JSON.stringify(e.candidate) }); };
+    pc.ontrack = (e) => { audio.srcObject = e.streams[0]; audio.play().catch(() => {}); };
+    gc.local.getTracks().forEach((tr) => pc.addTrack(tr, gc.local));
+    gc.peers.set(uid, peer);
+    return peer;
+  }
+  function gcDrop(uid) {
+    const p = gc.peers.get(uid);
+    if (!p) return;
+    p.pc.close(); p.audio.remove(); gc.peers.delete(uid);
+  }
+  async function gcIce(peer, c) {
+    if (!peer.remoteSet) { peer.ice.push(c); return; }
+    try { await peer.pc.addIceCandidate(c); } catch (err) { /* stale */ }
+  }
+
+  async function gcJoin(groupId, name) {
+    if (vc.id || gc.call) return showToast('You\'re already in a call.');
+    if (!privacyOk()) return;
+    const mic = await getMic();
+    if (!mic) return;
+    const r = await call_('gcall_join', { group: groupId });
+    if (!r.ok) { mic.getTracks().forEach((tr) => tr.stop()); return showToast(r.data.error); }
+    Object.assign(gc, { call: r.data.call, group: groupId, name, local: mic, since: 0, muted: false });
+    for (const p of r.data.participants) { // the newcomer offers to everyone already in the call
+      const peer = gcPeer(p.id);
+      const offer = await peer.pc.createOffer();
+      await peer.pc.setLocalDescription(offer);
+      await call_('gcall_signal', { call: gc.call, to: p.id, kind: 'offer', data: JSON.stringify(offer) });
+    }
+    drawGcCard(r.data.participants);
+    sfx.join();
+    gc.count = r.data.participants.length;
+    gc.poll = setInterval(gcPoll, 1000);
+    if (view.type === 'group') refresh(true);
+  }
+
+  async function gcPoll() {
+    if (!gc.call) return;
+    const r = await call_('gcall_poll', { call: gc.call, since: gc.since });
+    if (!r.ok || !gc.call) return;
+    for (const sg of r.data.signals) {
+      gc.since = sg.id;
+      const d = JSON.parse(sg.data);
+      const peer = gcPeer(sg.from);
+      if (sg.kind === 'offer') {
+        await peer.pc.setRemoteDescription(d); peer.remoteSet = true;
+        const ans = await peer.pc.createAnswer();
+        await peer.pc.setLocalDescription(ans);
+        await call_('gcall_signal', { call: gc.call, to: sg.from, kind: 'answer', data: JSON.stringify(ans) });
+        for (const c of peer.ice.splice(0)) await gcIce(peer, c);
+      } else if (sg.kind === 'answer') {
+        await peer.pc.setRemoteDescription(d); peer.remoteSet = true;
+        for (const c of peer.ice.splice(0)) await gcIce(peer, c);
+      } else if (sg.kind === 'ice') {
+        await gcIce(peer, d);
+      }
+    }
+    const ids = new Set(r.data.participants.map((p) => p.id));
+    [...gc.peers.keys()].forEach((uid) => { if (!ids.has(uid)) gcDrop(uid); });
+    if (r.data.state !== 'active') return gcCleanup('You left the call.');
+    const n = r.data.participants.length;
+    if (n > gc.count) sfx.join(); else if (n < gc.count) sfx.leave();
+    gc.count = n;
+    drawGcCard(r.data.participants);
+  }
+
+  function gcCleanup(message) {
+    if (gc.call) sfx.hangup();
+    clearInterval(gc.poll);
+    [...gc.peers.keys()].forEach(gcDrop);
+    if (gc.local) gc.local.getTracks().forEach((tr) => tr.stop());
+    Object.assign(gc, { call: 0, group: 0, local: null, poll: null, since: 0 });
+    gcard.hidden = true;
+    if (message) showToast(message);
+    if (view.type === 'group') refresh(true);
+  }
+
+  async function gcLeave() {
+    const id = gc.call;
+    gcCleanup('');
+    if (id) await call_('gcall_leave', { call: id });
+  }
+  window.addEventListener('beforeunload', () => { if (gc.call) call_('gcall_leave', { call: gc.call }); });
+
+  async function start() {
+    if (!readLogin()) {
+      const box = el('div', 'pd-buybox');
+      box.append(el('p', null, 'Log in with Discord or a CW PLAY account to use CW Chat.'), loginLink('Log in'));
+      root.replaceChildren(header(), box);
+      return;
+    }
+    const r = await call('me');
+    if (!r.ok) {
+      root.replaceChildren(header(), el('p', null, r.data.error || 'CW Chat isn\'t available right now.'));
+      return;
+    }
+    me = r.data;
+    layout.append(rail, side, pane);
+    root.replaceChildren(header(), layout);
+    const p = new URLSearchParams(location.search);
+    await refresh();
+    if (p.get('dm')) go({ type: 'dm', id: Number(p.get('dm')) });
+    else if (p.get('explore') !== null) go({ type: 'explore' });
+    else go({ type: 'home' });
+    setInterval(() => { if (!document.hidden && !busy && ['dm', 'channel', 'home', 'group'].includes(view.type)) refresh(); }, 3000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  }
+  start();
 })();
