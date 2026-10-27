@@ -333,10 +333,19 @@
     const CHAT_API = CREDITS_API.replace('credits.php', 'chat.php'); // same server as the store
     const call = (action, extra = {}) => apiCall(CHAT_API, action, extra);
     const box = el('div', 'disc');
+    // search users and servers by name or ID (searched on the server, so it works with many people)
+    const finder = el('input', 'adm-search');
+    Object.assign(finder, { type: 'search', placeholder: 'Search users and servers (name or ID)…' });
+    let findTimer;
+    finder.addEventListener('input', () => { clearTimeout(findTimer); findTimer = setTimeout(() => load(), 350); });
     const load = async () => {
-      box.replaceChildren(el('p', 'w-sub', 'Loading…'));
-      const r = await call('admin_overview');
-      box.replaceChildren();
+      const typing = document.activeElement === finder;
+      const term = finder.value.trim();
+      box.replaceChildren(finder, el('p', 'w-sub', 'Loading…'));
+      const r = await call('admin_overview', { q: term });
+      box.replaceChildren(finder);
+      if (typing) finder.focus();
+      if (term) box.append(el('p', 'w-sub', `Results for “${term}”. Clear the search to see everyone.`));
       if (!r.ok) return box.append(el('p', null, r.data.error || 'CW Chat couldn\'t be loaded.'));
       const doIt = async (btn, action, extra, msg, ask) => {
         if (ask && !window.confirm(ask)) return;
@@ -346,7 +355,7 @@
         load();
       };
       const users = r.data.users || [];
-      box.append(el('p', 'w-sub', `${users.length} people have used CW Chat. Suspended people can't reach you: they get "Your communication has been blocked" and you get one Discord message that updates with each new attempt.`));
+      box.append(el('p', 'w-sub', `${term ? `${users.length} matching people.` : `${users.length} people have used CW Chat.`} Suspended people can't reach you: they get "Your communication has been blocked" and you get one Discord message that updates with each new attempt.`));
       const ul = el('ul', 'wallet-list');
       users.forEach((u) => {
         const li = el('li', 'ord');
@@ -383,7 +392,7 @@
         box.append(el('p', 'pd-price-label', 'Latest messages'), rl);
       }
       // servers, reports, moderation log
-      const [sv, rp] = await Promise.all([call('admin_servers'), call('admin_reports')]);
+      const [sv, rp] = await Promise.all([call('admin_servers', { q: term }), call('admin_reports')]);
       const mk = (label, cls = 'shop-btn shop-btn--ghost acc-danger') => { const b = el('button', cls, label); b.type = 'button'; return b; };
       const reports = (rp.ok && rp.data.reports) || [];
       box.append(el('p', 'pd-price-label', `Reports waiting (${reports.length})`));

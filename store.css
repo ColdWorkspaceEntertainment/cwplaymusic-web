@@ -683,6 +683,8 @@
 .cc-row .shop-btn, .cc-set .shop-btn { min-height: 34px; padding: 0.3rem 0.9rem; font-size: 0.85rem; }
 @media (max-width: 900px) { .cc--3 { grid-template-columns: 1fr; } .cc-rail { grid-auto-flow: column; justify-content: start; overflow-x: auto; } }
 
+.adm-search { width: 100%; min-height: 44px; padding: 0.5rem 1rem; border: 1px solid var(--s-line); border-radius: 999px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }
