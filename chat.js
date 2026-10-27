@@ -17,6 +17,8 @@
   const time = (ts) => new Date(ts * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const btn = (text, cls = 'shop-btn shop-btn--ghost') => { const b = el('button', cls, text); b.type = 'button'; return b; };
   const serverOf = (id) => data.servers.find((s) => s.id === id);
+  const STATUS = { online: 'Online', idle: 'Idle', offline: 'Offline' };
+  const dot = (st) => { const d = el('span', `cc-st cc-st--${st || 'offline'}`); d.title = STATUS[st] || 'Offline'; return d; };
 
   function header() {
     const head = el('header', 'shop-head');
@@ -60,6 +62,19 @@
     item('🧭', 'Explore servers', view.type === 'explore', () => go({ type: 'explore' }));
   }
 
+  function invisibleToggle() {
+    const lab = el('label', 'cc-invis');
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!me.invisible;
+    cb.addEventListener('change', async () => {
+      const r = await call('set_invisible', { on: cb.checked });
+      if (!r.ok) { cb.checked = !cb.checked; return showToast(r.data.error); }
+      me.invisible = cb.checked;
+      showToast(cb.checked ? 'You now appear offline to everyone.' : 'Others can see when you\'re online again.');
+    });
+    lab.append(cb, el('span', null, 'Appear offline'));
+    return lab;
+  }
+
   // side: DM list (with search) or the server's channels
   const search = el('input');
   Object.assign(search, { placeholder: 'Find someone…', type: 'search' });
@@ -73,6 +88,7 @@
       const r = await call('search', { q: search.value.trim() });
       (r.ok ? r.data.users : []).forEach((u) => {
         const b = btn(u.name, 'cc-item');
+        b.prepend(dot(u.status));
         b.addEventListener('click', async () => {
           const o = await call('open_dm', { user: u.id });
           if (o.ok) { search.value = ''; results.replaceChildren(); go({ type: 'dm', id: o.data.dm }); } else showToast(o.data.error);
@@ -91,7 +107,7 @@
     if (mode !== sideMode) {
       sideMode = mode;
       if (srv) side.replaceChildren(el('p', 'pd-price-label', srv.name), sideList);
-      else side.replaceChildren(el('p', 'pd-price-label', 'Direct messages'), search, results, sideList);
+      else side.replaceChildren(el('p', 'pd-price-label', 'Direct messages'), invisibleToggle(), search, results, sideList);
     }
     sideList.replaceChildren();
     if (srv) {
@@ -112,7 +128,7 @@
       const b = btn('', `cc-item${view.type === 'dm' && view.id === d.id ? ' is-active' : ''}`);
       const txt = el('span', 'cc-item-text');
       txt.append(el('strong', null, d.name), el('span', 'w-sub', d.preview || ' '));
-      b.append(txt);
+      b.append(dot(d.status), txt);
       if (d.unread) b.append(el('span', 'cc-badge', String(d.unread)));
       b.addEventListener('click', () => go({ type: 'dm', id: d.id }));
       sideList.append(b);
@@ -127,6 +143,7 @@
       const b = btn('', `cc-item${['group', 'group_manage'].includes(view.type) && view.id === g.id ? ' is-active' : ''}`);
       const txt = el('span', 'cc-item-text');
       txt.append(el('strong', null, `👥 ${g.name}`), el('span', 'w-sub', g.in_call ? `🔊 ${g.in_call} in call` : (g.preview || `${g.members} members`)));
+      if (g.online) txt.append(el('span', 'cc-online', `🟢 ${g.online} online`));
       b.append(txt);
       if (g.unread) b.append(el('span', 'cc-badge', String(g.unread)));
       b.addEventListener('click', () => go({ type: 'group', id: g.id }));
@@ -140,7 +157,9 @@
     const top = el('div', 'cc-top');
     if (isDm) {
       if (!info.other) return pane.replaceChildren(el('p', 'w-sub', 'Loading…'));
-      top.append(el('strong', null, info.other.name));
+      const who = el('div', 'cc-who');
+      who.append(dot(info.other.status), el('strong', null, info.other.name), el('span', 'w-sub', STATUS[info.other.status] || 'Offline'));
+      top.append(who);
       const acts = el('div', 'adm-actions');
       if (!info.blocked_by_me && !info.suspended) {
         const ph = btn('📞 Call');
@@ -362,7 +381,9 @@
     mbox.append(el('p', 'pd-price-label', `Members (${members.length})`));
     members.forEach((m) => {
       const rowx = el('div', 'cc-row');
-      rowx.append(el('span', null, `${m.name}${m.role !== 'member' ? ` · ${m.role === 'owner' ? '👑 owner' : '🛡️ mod'}` : ''}`));
+      const nm = el('span', null, `${m.name}${m.role !== 'member' ? ` · ${m.role === 'owner' ? '👑 owner' : '🛡️ mod'}` : ''}`);
+      nm.prepend(dot(m.status));
+      rowx.append(nm);
       const canAct = m.id !== me.id && m.role !== 'owner' && (owner || (mod && m.role === 'member'));
       if (canAct) {
         if (owner) {
@@ -436,7 +457,7 @@
   }
 
   async function refresh(force = false) {
-    const params = { since: lastId };
+    const params = { since: lastId, idle: document.hidden };
     if (view.type === 'dm') params.dm = view.id;
     if (view.type === 'channel') params.channel = view.channel;
     if (view.type === 'group') params.group = view.id;
@@ -733,7 +754,9 @@
     const list = el('div', 'cc-set');
     members.forEach((m) => {
       const row = el('div', 'cc-row');
-      row.append(el('span', null, `${m.name}${m.id === g.owner ? ' · 👑 owner' : ''}${m.id === me.id ? ' (you)' : ''}`));
+      const nm = el('span', null, `${m.name}${m.id === g.owner ? ' · 👑 owner' : ''}${m.id === me.id ? ' (you)' : ''}`);
+      nm.prepend(dot(m.status));
+      row.append(nm);
       if (owner && m.id !== g.owner) {
         const rm = btn('Remove');
         rm.addEventListener('click', async () => { if ((await act('group_remove', { user: m.id }, 'Removed.', `Remove ${m.name} from the group?`))?.ok) drawGroupManage(); });

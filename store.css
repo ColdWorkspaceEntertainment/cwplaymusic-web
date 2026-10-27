@@ -696,6 +696,15 @@
 .cc-group-head .pd-price-label { margin: 0; }
 .cc-call + .cc-call { bottom: 9rem; }
 
+/* ---------- CW Chat: online status ---------- */
+.cc-st { display: inline-block; flex: none; width: 10px; height: 10px; margin-right: 0.45rem; border-radius: 50%; vertical-align: middle; background: #7d8a84; }
+.cc-st--online { background: #3ad07a; box-shadow: 0 0 0 2px rgba(58, 208, 122, 0.25); }
+.cc-st--idle { background: #f2b33d; }
+.cc-who { display: flex; align-items: center; gap: 0.4rem; }
+.cc-online { color: #3ad07a; font-size: 0.78rem; }
+.cc-invis { display: flex; align-items: center; gap: 0.45rem; color: var(--s-muted); font-size: 0.85rem; cursor: pointer; }
+.cc-side .cc-invis input { width: 16px; height: 16px; min-height: 0; margin: 0; padding: 0; border-radius: 4px; accent-color: #087a43; cursor: pointer; }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }
