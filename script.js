@@ -426,13 +426,16 @@ function setButton(btn, text, iconClass) {
 }
 async function setupSubscribe(btn, p) {
   // Priority Listeners: YouTube channel instead of a note (shown on the Early Access page once delivered)
+  // Creator License: the channel the license is for (not shown publicly)
   let yt = null;
-  if (p.key === 'priority-listeners') {
+  if (p.key === 'priority-listeners' || p.key === 'creator-license') {
     const wrap = el('label', 'pl-yt');
     yt = el('input');
     Object.assign(yt, { type: 'url', maxLength: 200, placeholder: 'https://youtube.com/@yourchannel', autocomplete: 'url' });
     wrap.append(el('span', null, 'Your YouTube channel'), yt,
-      el('small', 'w-sub', 'Shown with your username on the Priority Listeners page after your order is delivered.'));
+      el('small', 'w-sub', p.key === 'creator-license'
+        ? 'The channel your license is for. Only Cold Works Production sees it.'
+        : 'Shown with your username on the Priority Listeners page after your order is delivered.'));
     // the button isn't on the page yet when this runs: place the box above it as soon as it is
     const place = () => (btn.isConnected ? btn.before(wrap) : requestAnimationFrame(place));
     place();
