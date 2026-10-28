@@ -103,6 +103,7 @@ function icon(classes) {
 // ---------- Catalog ----------
 let CATALOG = [];
 let DISCOUNTS = {}; // active discounts from the server (prices are always calculated by the server at checkout)
+let CAMPAIGNS = {}; // active campaigns: gift product, buy X pay Y, first month of a subscription
 
 async function loadCatalog() {
   const res = await fetch(new URL('catalog.json', ROOT), { cache: 'no-store' });
@@ -120,6 +121,7 @@ async function loadCatalog() {
     const counts = (live && live.orders) || {};
     const ratings = (live && live.ratings) || {};
     DISCOUNTS = (live && live.discounts) || {};
+    CAMPAIGNS = (live && live.campaigns) || {};
     products.forEach((p) => {
       const n = Number(counts[p.key]) || 0;
       if (n) p.orders = (Number(p.orders) || 0) + n;
@@ -215,6 +217,64 @@ function saleBanner() {
   b.append(icon('fa-solid fa-tags'), text);
   return b;
 }
+// ---------- "Notify me when it opens" (full products): the email is kept only for this and deleted after
+function notifyForm(p) {
+  const form = el('form', 'notify-form');
+  const email = el('input'); Object.assign(email, { type: 'email', required: true, maxLength: 120, placeholder: 'your@email.com', autocomplete: 'email' });
+  const trap = el('input'); Object.assign(trap, { type: 'text', name: 'website', tabIndex: -1, autocomplete: 'off' }); trap.className = 'hp-field';
+  const send = el('button', 'shop-btn', 'Notify me');
+  send.type = 'submit';
+  send.prepend(icon('fa-solid fa-bell'));
+  const row = el('div', 'notify-row');
+  row.append(email, send);
+  form.append(el('strong', null, 'Full right now. Want an email when it opens?'), row, trap,
+    el('small', 'w-sub', 'We only use your email for this one message, then delete it.'));
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    send.disabled = true;
+    try {
+      const r = await fetch(STATUS_API.replace('status.php', 'notify.php'), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: p.key, email: email.value.trim(), website: trap.value }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || 'Something went wrong.');
+      form.replaceChildren(el('p', null, `✅ Done! We'll email ${email.value.trim()} when ${p.name} opens.`));
+    } catch (err) {
+      send.disabled = false;
+      showToast(err.message);
+    }
+  });
+  return form;
+}
+
+// ---------- Campaigns
+const productName = (key) => (CATALOG.find((p) => p.key === key) || {}).name || key;
+function campaignLines() {
+  const out = [];
+  const g = CAMPAIGNS.gift; const m = CAMPAIGNS.multi; const t = CAMPAIGNS.trial;
+  if (g) out.push(g.message || `Buy ${productName(g.buy)}, get ${productName(g.gift)} free!`);
+  if (m) out.push(m.message || `Buy ${m.buy}, pay for ${m.pay}!`);
+  if (t) out.push(t.message || (t.mode === 'free' ? 'First month free for new subscribers!' : `First month ${t.percent}% off for new subscribers!`));
+  return out;
+}
+function campaignBanner() {
+  const lines = campaignLines();
+  if (!lines.length) return null;
+  const b = el('div', 'sale-banner camp-banner');
+  const text = el('span');
+  text.append(el('strong', null, '🎁 Campaigns: '), document.createTextNode(lines.join(' · ')));
+  b.append(icon('fa-solid fa-gift'), text);
+  return b;
+}
+function campaignNotes(p) {
+  const notes = [];
+  const g = CAMPAIGNS.gift; const m = CAMPAIGNS.multi; const t = CAMPAIGNS.trial;
+  if (g && g.buy === p.key) notes.push(`🎁 Buy this and get ${productName(g.gift)} free.`);
+  if (g && g.gift === p.key) notes.push(`🎁 Free with ${productName(g.buy)} right now.`);
+  if (m && !p.subscription && creditPrice(p) && (m.scope === 'all' || (m.products || []).includes(p.key))) notes.push(`🛍️ Buy ${m.buy}, pay for ${m.pay}: put ${m.buy} of these products in one cart and the cheapest ${m.buy - m.pay === 1 ? 'one is' : `${m.buy - m.pay} are`} free.`);
+  if (t && p.subscription && (t.products || []).includes(p.key)) notes.push(t.mode === 'free' ? '🔁 First month free if you never subscribed to this before.' : `🔁 First month ${t.percent}% off if you never subscribed to this before.`);
+  return notes;
+}
+
 async function creditsCall(action, extra = {}) {
   return apiCall(CREDITS_API, action, extra);
 }
@@ -712,6 +772,13 @@ function renderProductPage() {
     dn.append(icon('fa-solid fa-tag'), el('span', null, parts.join(' ') + ' Discounts don\'t add up; the biggest one applies at checkout.'));
     buy.append(dn);
   }
+  campaignNotes(p).forEach((n) => { const cn = el('p', 'pd-note camp-note'); cn.append(icon('fa-solid fa-gift'), el('span', null, n)); buy.append(cn); });
+  if (Array.isArray(p.includes) && p.includes.length) {
+    const inc = el('p', 'pd-note');
+    inc.append(icon('fa-solid fa-box-open'), el('span', null, `This bundle includes: ${p.includes.map(productName).join(', ')}.`));
+    buy.append(inc);
+  }
+  if (p.status === 'full') buy.append(notifyForm(p));
   if (isSub) {
     const subNote = el('p', 'pd-note');
     subNote.append(icon('fa-solid fa-rotate'), el('span', null,
@@ -966,6 +1033,8 @@ loadCatalog()
     renderCatalog();
     const catBox = document.getElementById('catalog');
     const banner = saleBanner();
+    const cBanner = campaignBanner();
+    if (catBox && cBanner) catBox.prepend(cBanner);
     if (catBox && banner) catBox.prepend(banner);
     renderProductPage();
   })

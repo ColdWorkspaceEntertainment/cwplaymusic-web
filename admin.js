@@ -245,7 +245,14 @@
             act(stop, 'admin_cancel_sub', { id: x.id }, 'Subscription cancelled.');
           }
         });
-        right.append(stop);
+        const gift = el('button', 'shop-btn shop-btn--ghost', '+30 days free');
+        gift.type = 'button';
+        gift.addEventListener('click', () => {
+          if (window.confirm(`Extend ${x.u}'s ${x.name} subscription by 30 days for free? No CW Credits are taken.`)) {
+            act(gift, 'admin_extend_sub', { id: x.id }, 'Subscription extended by 30 days.');
+          }
+        });
+        right.append(gift, stop);
       }
       li.append(main, right);
       list.append(li);
@@ -378,6 +385,109 @@
         });
         box.append(ul);
       }
+    });
+    return box;
+  }
+
+  // ---------- Campaigns: gift product, buy X pay Y, first month of a subscription (+ "notify me" requests)
+  function campaignsSection() {
+    const box = el('div', 'disc');
+    box.append(el('p', 'w-sub', 'Loading…'));
+    Promise.all([creditsCall('admin_campaigns'), loadCatalog().catch(() => [])]).then(([r, products]) => {
+      box.replaceChildren();
+      if (!r.ok) return box.append(el('p', null, r.data.error || 'Campaigns couldn\'t be loaded.'));
+      const c = r.data.campaigns;
+      const now = r.data.now;
+      const toLocal = (ts) => { if (!ts) return ''; const t = new Date(ts * 1000); return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+      const fromLocal = (v) => (v ? Math.floor(new Date(v).getTime() / 1000) : 0);
+      const row = (label, input, hint) => { const l = el('label', 'disc-row'); l.append(el('span', null, label), input); if (hint) l.append(el('small', 'w-sub', hint)); return l; };
+      const onOff = (on) => { const sel = el('select', 'adm-select'); [['1', 'On (var)'], ['0', 'Off (yok)']].forEach(([v, t]) => { const o = el('option', null, t); o.value = v; sel.append(o); }); sel.value = on ? '1' : '0'; return sel; };
+      const num = (v, min, max) => { const i = el('input'); Object.assign(i, { type: 'number', min, max, value: v }); return i; };
+      const text = (v, ph) => { const i = el('input'); Object.assign(i, { maxLength: 140, value: v, placeholder: ph }); return i; };
+      const date = (ts) => { const i = el('input'); i.type = 'datetime-local'; i.value = toLocal(ts); return i; };
+      const pick = (list, value, empty) => {
+        const sel = el('select', 'adm-select');
+        const o0 = el('option', null, empty); o0.value = ''; sel.append(o0);
+        list.forEach((p) => { const o = el('option', null, p.name); o.value = p.key; sel.append(o); });
+        sel.value = value || '';
+        return sel;
+      };
+      const ticks = (list, chosen) => {
+        const box2 = el('div', 'disc-picks');
+        list.forEach((p) => { const l = el('label'); const cb = el('input'); cb.type = 'checkbox'; cb.value = p.key; cb.checked = chosen.includes(p.key); l.append(cb, document.createTextNode(` ${p.name}`)); box2.append(l); });
+        return box2;
+      };
+      const ticked = (b) => [...b.querySelectorAll('input:checked')].map((x) => x.value);
+      const stateOf = (x) => (!x.on ? 'Now: off.' : x.start && now < x.start ? 'Now: scheduled, starts automatically.' : x.end && now >= x.end ? 'Now: ended (the end date has passed).' : 'Now: active on the store.');
+      const items = products.filter((p) => creditPrice(p) && !p.subscription);
+      const subs = products.filter((p) => creditPrice(p) && p.subscription);
+
+      // 1) gift product
+      const g = el('div', 'pd-buybox disc-card');
+      const gOn = onOff(c.gift.on); const gBuy = pick(items, c.gift.buy, 'Choose the product to buy…'); const gGift = pick(items, c.gift.gift, 'Choose the gift…');
+      const gMsg = text(c.gift.message, 'e.g. Buy an avatar, get a phone wallpaper free! 🎁'); const gS = date(c.gift.start); const gE = date(c.gift.end);
+      g.append(el('p', 'pd-price-label', '🎁 Gift product'), el('p', 'w-sub', stateOf(c.gift)),
+        row('Status', gOn), row('When someone buys', gBuy), row('They also get, free', gGift, 'Added to their order for 0 CW Credits; deliver it like any order.'),
+        row('Message', gMsg, 'Shown on the store and the product page.'), row('Starts (optional)', gS), row('Ends (optional)', gE));
+
+      // 2) buy X pay Y
+      const m = el('div', 'pd-buybox disc-card');
+      const mOn = onOff(c.multi.on); const mBuy = num(c.multi.buy, 2, 10); const mPay = num(c.multi.pay, 1, 9);
+      const mScope = el('select', 'adm-select');
+      [['all', 'All products sold for CW Credits'], ['selected', 'Only the products I tick']].forEach(([v, t]) => { const o = el('option', null, t); o.value = v; mScope.append(o); });
+      mScope.value = c.multi.scope;
+      const mPicks = ticks(items, c.multi.products);
+      const syncM = () => { mPicks.style.display = mScope.value === 'selected' ? '' : 'none'; };
+      mScope.addEventListener('change', syncM); syncM();
+      const mMsg = text(c.multi.message, 'e.g. Buy 3 wallpapers, pay for 2!'); const mS = date(c.multi.start); const mE = date(c.multi.end);
+      m.append(el('p', 'pd-price-label', '🛍️ Buy X, pay Y'), el('p', 'w-sub', stateOf(c.multi)),
+        row('Status', mOn), row('Buy (X)', mBuy), row('Pay for (Y)', mPay, 'The cheapest ones are free. Doesn\'t add up with discounts: the cheaper total applies.'),
+        row('Applies to', mScope), mPicks, row('Message', mMsg), row('Starts (optional)', mS), row('Ends (optional)', mE));
+
+      // 3) first month of a subscription
+      const t = el('div', 'pd-buybox disc-card');
+      const tOn = onOff(c.trial.on);
+      const tMode = el('select', 'adm-select');
+      [['free', 'First month free'], ['percent', 'First month with a discount']].forEach(([v, x]) => { const o = el('option', null, x); o.value = v; tMode.append(o); });
+      tMode.value = c.trial.mode;
+      const tPct = num(c.trial.percent, 1, 90); const tPicks = ticks(subs, c.trial.products);
+      const tMsg = text(c.trial.message, 'e.g. Try Priority Listeners free for a month!'); const tS = date(c.trial.start); const tE = date(c.trial.end);
+      const tPctRow = row('Discount percent', tPct);
+      const syncT = () => { tPctRow.style.display = tMode.value === 'percent' ? '' : 'none'; };
+      tMode.addEventListener('change', syncT); syncT();
+      t.append(el('p', 'pd-price-label', '🔁 Subscription: first month'), el('p', 'w-sub', stateOf(c.trial)),
+        el('p', 'w-sub', 'Only for people who never subscribed to that product before. Later months cost the normal price.'),
+        row('Status', tOn), row('Offer', tMode), tPctRow, el('span', 'w-sub', 'Subscriptions:'), tPicks,
+        row('Message', tMsg), row('Starts (optional)', tS), row('Ends (optional)', tE));
+
+      const save = el('button', 'shop-btn', 'Save campaigns');
+      save.type = 'button';
+      save.addEventListener('click', () => {
+        const bad = [[gS, gE], [mS, mE], [tS, tE]].some(([a, b]) => fromLocal(a.value) && fromLocal(b.value) && fromLocal(b.value) <= fromLocal(a.value));
+        if (bad) return showToast('An end date must be after its start.');
+        if (gOn.value === '1' && (!gBuy.value || !gGift.value)) return showToast('Choose both products for the gift campaign.');
+        if (Number(mPay.value) >= Number(mBuy.value)) return showToast('"Pay for" must be less than "Buy".');
+        act(save, 'admin_campaigns_save', { campaigns: {
+          gift: { on: gOn.value === '1', buy: gBuy.value, gift: gGift.value, message: gMsg.value.trim(), start: fromLocal(gS.value), end: fromLocal(gE.value) },
+          multi: { on: mOn.value === '1', buy: Number(mBuy.value), pay: Number(mPay.value), scope: mScope.value, products: ticked(mPicks), message: mMsg.value.trim(), start: fromLocal(mS.value), end: fromLocal(mE.value) },
+          trial: { on: tOn.value === '1', mode: tMode.value, percent: Number(tPct.value), products: ticked(tPicks), message: tMsg.value.trim(), start: fromLocal(tS.value), end: fromLocal(tE.value) },
+        } }, 'Campaigns saved.');
+      });
+      const grid = el('div', 'disc-grid');
+      grid.append(g, m, t);
+      // "notify me" requests waiting for full products
+      const waiting = Object.entries(r.data.notify || {});
+      const nBox = el('div', 'pd-buybox disc-card');
+      nBox.append(el('p', 'pd-price-label', '🔔 "Notify me" requests'),
+        el('p', 'w-sub', waiting.length ? waiting.map(([k, n]) => `${(products.find((p) => p.key === k) || {}).name || k}: ${n} waiting`).join(' · ')
+          : 'No one is waiting. When a full product opens again (in catalog.json), everyone waiting gets an email within about 10 minutes.'));
+      if (waiting.length) {
+        const now2 = el('button', 'shop-btn shop-btn--ghost', 'Check now');
+        now2.type = 'button';
+        now2.addEventListener('click', async () => { const x = await creditsCall('admin_notify_check'); showToast(x.ok ? `${x.data.sent} email${x.data.sent === 1 ? '' : 's'} sent.` : x.data.error); });
+        nBox.append(now2);
+      }
+      box.append(grid, save, nBox);
     });
     return box;
   }
@@ -774,6 +884,7 @@
       section('Waiting for approval', pendingList(data.pending)),
       section('Support', supportSection()),
       section('Discounts', discountsSection()),
+      section('Campaigns', campaignsSection()),
       section('Priority Listeners previews', previewsAdmin()),
       section('Orders', ordersSection()),
       section('Reviews waiting', reviewsBox),

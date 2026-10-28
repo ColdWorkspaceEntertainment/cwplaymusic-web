@@ -642,6 +642,14 @@
 .pv-audio { width: 100%; max-width: 420px; margin-top: 0.4rem; }
 .disc-card textarea { width: 100%; min-height: 54px; padding: 0.5rem 0.7rem; border: 1px solid var(--s-line); border-radius: 10px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; }
 
+/* ---------- Campaigns + notify me ---------- */
+.camp-banner { background: linear-gradient(90deg, rgba(8, 122, 67, 0.35), rgba(201, 162, 39, 0.25)); }
+.camp-note span { color: #f2d27a; }
+.notify-form { display: grid; gap: 0.5rem; margin-top: 0.6rem; padding: 0.9rem; border-radius: 12px; background: rgba(0, 0, 0, 0.22); }
+.notify-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.notify-row input { flex: 1; min-width: 180px; min-height: 42px; padding: 0.4rem 0.9rem; border: 1px solid var(--s-line); border-radius: 999px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; }
+.hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }
