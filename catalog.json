@@ -1,13 +1,13 @@
 {
   "products": [
-{
+    {
       "key": "priority-listeners",
       "id": 291,
       "name": "Priority Listeners – Early Access",
       "description": "Listen to new CW PLAY tracks before release, every month. Previews are sent to you in DM as soon as they're ready.",
       "rules": [
-       "The preview is personal; it can't be shared or re-uploaded.",
-       "Cancel any time in your wallet."
+        "The preview is personal; it can't be shared or re-uploaded.",
+        "Cancel any time in your wallet."
       ],
       "credits": 1500,
       "subscription": "monthly",
@@ -136,14 +136,65 @@
       "id": 400,
       "name": "CW Editor",
       "description": "A simple video editor for your projects. Cut, trim, arrange clips, add titles, transitions and music, and export in 1080p, 720p or vertical format.",
-      "rules": ["Use on up to 2 computers.", "Cancel any time in your wallet."],
+      "rules": [
+        "Use on up to 2 computers.",
+        "Cancel any time in your wallet."
+      ],
       "credits": 5500,
       "subscription": "monthly",
       "license": true,
       "download": "https://medya.cwplaymusic.com/downloads/CW-Editor.zip",
       "status": "open",
-      "rating": null, "reviews": 0, "orders": 0,
-      "featured": false, "icon": "fa-film", "image": null, "hue": 200
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "featured": false,
+      "icon": "fa-film",
+      "image": null,
+      "hue": 200
+    },
+    {
+      "key": "creator-license",
+      "id": 401,
+      "name": "CW PLAY Creator License",
+      "description": "Use CW PLAY tracks in your YouTube videos and streams while your subscription is active.",
+      "rules": [
+        "Credit CW PLAY in your video description.",
+        "Cancel any time in your wallet."
+      ],
+      "credits": 800,
+      "subscription": "monthly",
+      "status": "full",
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "featured": false,
+      "icon": "fa-certificate",
+      "image": null,
+      "hue": 150
+    },
+    {
+      "key": "avatar-wallpaper-bundle",
+      "id": 309,
+      "name": "Avatar + Phone Wallpaper Bundle",
+      "description": "A personal avatar / chibi drawing and a matching phone wallpaper, together for less than buying them separately.",
+      "rules": [
+        "Orders are reviewed manually.",
+        "Send the details for both in your order note."
+      ],
+      "credits": 3800,
+      "includes": [
+        "personal-avatar",
+        "phone-wallpaper-art"
+      ],
+      "status": "open",
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "featured": false,
+      "icon": "fa-box-open",
+      "image": null,
+      "hue": 330
     }
   ]
 }
