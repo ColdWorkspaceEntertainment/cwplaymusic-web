@@ -389,6 +389,72 @@
     return box;
   }
 
+  // ---------- Blocked accounts and IP codes (manage them even if the Discord block link is gone)
+  function bansSection() {
+    const box = el('div', 'disc');
+    const load = async () => {
+      box.replaceChildren(el('p', 'w-sub', 'Loading…'));
+      const r = await creditsCall('admin_bans');
+      box.replaceChildren();
+      if (!r.ok) return box.append(el('p', null, r.data.error || 'Blocks couldn\'t be loaded.'));
+      const unblock = (btn, kind, code, label) => {
+        if (!window.confirm(`Unblock ${label}? They'll be able to order and write reviews again.`)) return;
+        btn.disabled = true;
+        creditsCall('admin_unban', { kind, code }).then((x) => { showToast(x.ok ? 'Unblocked.' : (x.data.error || 'Failed.')); load(); });
+      };
+      const accounts = r.data.accounts || [];
+      const ips = r.data.ips || [];
+      box.append(el('p', 'w-sub', 'Blocked accounts and connections can\'t order, request CW Credits, write reviews or use Help. Blocks you make from the 🚫 links in Discord also show up here.'));
+      box.append(el('p', 'pd-price-label', `Accounts (${accounts.length})`));
+      if (!accounts.length) box.append(el('p', 'w-sub', 'No blocked accounts.'));
+      const al = el('ul', 'wallet-list');
+      accounts.forEach((a) => {
+        const li = el('li');
+        const main = el('div', 'w-main');
+        main.append(el('span', null, `🚫 ${a.name || a.id}`), el('span', 'w-sub', `${a.type} · ${a.id}${a.ts ? ` · since ${when(a.ts)}` : ''}`));
+        const b = el('button', 'shop-btn shop-btn--ghost', 'Unblock'); b.type = 'button';
+        b.addEventListener('click', () => unblock(b, 'id', a.id, a.name || a.id));
+        li.append(main, b);
+        al.append(li);
+      });
+      box.append(al);
+      box.append(el('p', 'pd-price-label', `IP codes (${ips.length})`));
+      if (!ips.length) box.append(el('p', 'w-sub', 'No blocked IP codes.'));
+      const il = el('ul', 'wallet-list');
+      ips.forEach((x) => {
+        const li = el('li');
+        const main = el('div', 'w-main');
+        main.append(el('span', null, `🚫 ${x.code}`), el('span', 'w-sub', `IP code${x.ts ? ` · since ${when(x.ts)}` : ''}`));
+        const b = el('button', 'shop-btn shop-btn--ghost', 'Unblock'); b.type = 'button';
+        b.addEventListener('click', () => unblock(b, 'ip', x.code, `IP code ${x.code}`));
+        li.append(main, b);
+        il.append(li);
+      });
+      box.append(il);
+      // block by hand
+      const card = el('div', 'pd-buybox disc-card');
+      const kind = el('select', 'adm-select');
+      [['id', 'Account (Discord ID or cw…)'], ['ip', 'IP code (12 characters)']].forEach(([v, t]) => { const o = el('option', null, t); o.value = v; kind.append(o); });
+      const code = el('input'); Object.assign(code, { maxLength: 40, placeholder: 'e.g. 123456789012345678 or cw12' });
+      kind.addEventListener('change', () => { code.placeholder = kind.value === 'ip' ? 'e.g. a1b2c3d4e5f6' : 'e.g. 123456789012345678 or cw12'; });
+      const go = el('button', 'shop-btn', 'Block'); go.type = 'button';
+      go.addEventListener('click', async () => {
+        if (!code.value.trim()) return showToast('Enter an ID or IP code.');
+        if (!window.confirm(`Block ${code.value.trim()}?`)) return;
+        go.disabled = true;
+        const x = await creditsCall('admin_ban', { kind: kind.value, code: code.value.trim() });
+        go.disabled = false;
+        showToast(x.ok ? 'Blocked.' : (x.data.error || 'Failed.'));
+        if (x.ok) load();
+      });
+      const row = (l, i) => { const lab = el('label', 'disc-row'); lab.append(el('span', null, l), i); return lab; };
+      card.append(el('p', 'pd-price-label', 'Block by hand'), row('Type', kind), row('ID or code', code), go);
+      box.append(card);
+    };
+    load();
+    return box;
+  }
+
   // ---------- Campaigns: gift product, buy X pay Y, first month of a subscription (+ "notify me" requests)
   function campaignsSection() {
     const box = el('div', 'disc');
@@ -885,6 +951,7 @@
       section('Support', supportSection()),
       section('Discounts', discountsSection()),
       section('Campaigns', campaignsSection()),
+      section('Blocked accounts', bansSection()),
       section('Priority Listeners previews', previewsAdmin()),
       section('Orders', ordersSection()),
       section('Reviews waiting', reviewsBox),
