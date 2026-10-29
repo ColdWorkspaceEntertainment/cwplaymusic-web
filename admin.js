@@ -425,6 +425,10 @@
         const li = el('li');
         const main = el('div', 'w-main');
         main.append(el('span', null, `🚫 ${x.code}`), el('span', 'w-sub', `IP code${x.ts ? ` · since ${when(x.ts)}` : ''}`));
+        const acc = x.accounts || [];
+        main.append(el('span', 'w-note', acc.length
+          ? `Used by: ${acc.map((a) => `${a.name} (${a.id.startsWith('cw') ? 'CW PLAY' : 'Discord'})`).join(', ')}`
+          : 'No accounts seen from this IP code in the last 90 days.'));
         const b = el('button', 'shop-btn shop-btn--ghost', 'Unblock'); b.type = 'button';
         b.addEventListener('click', () => unblock(b, 'ip', x.code, `IP code ${x.code}`));
         li.append(main, b);
