@@ -665,8 +665,18 @@
 .rw-ribbon { position: absolute; top: 0.6rem; right: 0.6rem; padding: 0.15rem 0.55rem; border-radius: 999px; background: #c9a227; color: #111; font-size: 0.75rem; font-weight: 800; }
 .rw-code { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .rw-code input { flex: 1; min-width: 180px; min-height: 44px; padding: 0.4rem 1rem; border: 1px solid var(--s-line); border-radius: 999px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; letter-spacing: 0.08em; text-transform: uppercase; }
-.rw-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 1rem; background: rgba(0, 0, 0, 0.6); }
-.rw-modal-box { width: min(420px, 100%); display: grid; gap: 0.45rem; }
+.rw-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1rem; background: rgba(0, 0, 0, 0.6); }
+.rw-modal {
+    --s-text: #ffffff; --s-muted: rgba(255, 255, 255, 0.68); --s-faint: rgba(255, 255, 255, 0.1); --s-line: rgba(255, 255, 255, 0.14);
+    --s-accent: #087a43; --s-accent-hover: #0a8f4f; --s-bright: #3ddc84;
+    backdrop-filter: blur(3px);
+}
+.rw-modal-box {
+    width: min(420px, 100%); display: grid; gap: 0.45rem;
+    background: linear-gradient(180deg, #15402f 0%, #0b2219 100%); color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.16); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+.rw-modal-box .w-sub { color: rgba(255, 255, 255, 0.68); }
 .rw-modal-box h3 { margin: 0; }
 .w-amount.is-neg { color: #f2a27a; }
 .w-amount.is-pos { color: #7ee2a8; }
