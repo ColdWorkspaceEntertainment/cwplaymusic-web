@@ -683,6 +683,20 @@
 .cc-banner { margin: 0; padding: 0.55rem 0.8rem; border-radius: 10px; background: rgba(224, 82, 63, 0.18); }
 @media (max-width: 760px) { .rw-top { grid-template-columns: 1fr; } }
 
+/* ---------- Store: CW PLAY Cinema section ---------- */
+.shop-cat-head { grid-column: 1 / -1; margin-top: 1.6rem; padding: 1.1rem 1.2rem; border-radius: 16px;
+    background: linear-gradient(90deg, rgba(20, 60, 120, 0.45), rgba(8, 122, 67, 0.25)); border: 1px solid var(--s-line); }
+.shop-cat-head h3 { display: flex; align-items: center; gap: 0.55rem; margin: 0 0 0.25rem; font-size: 1.35rem; }
+.shop-cat-head p { display: inline; margin: 0; color: var(--s-muted); }
+.shop-cat-head a { color: var(--s-bright, #3ddc84); font-weight: 700; }
+
+/* ---------- Copyright page ---------- */
+.legal-copy { max-width: 820px; line-height: 1.7; }
+.legal-copy h3 { margin: 1.6rem 0 0.4rem; }
+.legal-copy ol, .legal-copy ul { padding-left: 1.3rem; }
+.legal-copy li { margin: 0.3rem 0; }
+.legal-copy .legal-box { padding: 1rem 1.2rem; border-radius: 14px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--s-line); }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }

@@ -620,7 +620,21 @@ function renderCatalog() {
     box.append(el('p', 'catalog-empty', 'No items match your search.'));
     return;
   }
-  list.forEach((p) => box.append(productCard(p)));
+  // CW PLAY Cinema products get their own section (catalog "category": "cinema", or a key starting with "cinema")
+  const isCinema = (p) => p.category === 'cinema' || String(p.key).startsWith('cinema');
+  const shop = list.filter((p) => !isCinema(p));
+  const cinema = list.filter(isCinema);
+  shop.forEach((p) => box.append(productCard(p)));
+  if (cinema.length) {
+    const head = el('div', 'shop-cat-head');
+    const title = el('h3', null, 'CW PLAY Cinema');
+    title.prepend(icon('fa-solid fa-film'));
+    const more = el('a', null, 'Visit CW PLAY Cinema');
+    more.href = 'CW%20PLAY%20Cinema/series.html';
+    head.append(title, el('p', null, 'Screenings and more for CW PLAY Cinema, our virtual cinema. '), more);
+    box.append(head);
+    cinema.forEach((p) => box.append(productCard(p)));
+  }
 }
 
 (function setupStoreControls() {
