@@ -650,6 +650,29 @@
 .notify-row input { flex: 1; min-width: 180px; min-height: 42px; padding: 0.4rem 0.9rem; border: 1px solid var(--s-line); border-radius: 999px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; }
 .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 
+/* ---------- Rewards (CW Points) ---------- */
+.rw { display: grid; gap: 1.2rem; }
+.rw-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 1rem; }
+.rw-big { margin: 0.2rem 0; font-size: 2rem; font-weight: 800; }
+.rw-daily .shop-btn, .rw-pack .shop-btn { width: 100%; justify-content: center; }
+.rw-streak { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.35rem; margin: 0.4rem 0; }
+.rw-dot { display: grid; place-items: center; height: 34px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); font-weight: 700; font-size: 0.85rem; }
+.rw-dot.is-done { background: #087a43; color: #fff; }
+.rw-dot.is-bonus { outline: 2px dashed rgba(242, 210, 122, 0.6); }
+.rw-packs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; }
+.rw-pack { position: relative; display: grid; gap: 0.3rem; align-content: start; text-align: center; }
+.rw-pack.has-bonus { box-shadow: 0 0 0 2px rgba(242, 210, 122, 0.5); }
+.rw-ribbon { position: absolute; top: 0.6rem; right: 0.6rem; padding: 0.15rem 0.55rem; border-radius: 999px; background: #c9a227; color: #111; font-size: 0.75rem; font-weight: 800; }
+.rw-code { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.rw-code input { flex: 1; min-width: 180px; min-height: 44px; padding: 0.4rem 1rem; border: 1px solid var(--s-line); border-radius: 999px; background: rgba(0, 0, 0, 0.28); color: var(--s-text); font: inherit; letter-spacing: 0.08em; text-transform: uppercase; }
+.rw-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 1rem; background: rgba(0, 0, 0, 0.6); }
+.rw-modal-box { width: min(420px, 100%); display: grid; gap: 0.45rem; }
+.rw-modal-box h3 { margin: 0; }
+.w-amount.is-neg { color: #f2a27a; }
+.w-amount.is-pos { color: #7ee2a8; }
+.cc-banner { margin: 0; padding: 0.55rem 0.8rem; border-radius: 10px; background: rgba(224, 82, 63, 0.18); }
+@media (max-width: 760px) { .rw-top { grid-template-columns: 1fr; } }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
     .pd { grid-template-columns: 1fr; }

@@ -389,6 +389,63 @@
     return box;
   }
 
+  // ---------- CW Points codes (like Roblox codes): create, edit, delete
+  function codesSection() {
+    const box = el('div', 'disc');
+    const toLocal = (ts) => { if (!ts) return ''; const t = new Date(ts * 1000); return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+    const fromLocal = (v) => (v ? Math.floor(new Date(v).getTime() / 1000) : 0);
+    const load = async () => {
+      box.replaceChildren(el('p', 'w-sub', 'Loading…'));
+      const r = await creditsCall('admin_codes');
+      box.replaceChildren();
+      if (!r.ok) return box.append(el('p', null, r.data.error || 'Codes couldn\'t be loaded.'));
+      box.append(el('p', 'w-sub', 'People enter these on the Rewards page to get CW Points. Each account can use a code once. Share them in announcements.'));
+      const card = el('div', 'pd-buybox disc-card');
+      const code = el('input'); Object.assign(code, { maxLength: 24, placeholder: 'e.g. HALLOWEEN26' });
+      const points = el('input'); Object.assign(points, { type: 'number', min: 1, max: 100000, value: 500 });
+      const max = el('input'); Object.assign(max, { type: 'number', min: 0, value: 0 });
+      const exp = el('input'); exp.type = 'datetime-local';
+      const row = (l, i, h) => { const lab = el('label', 'disc-row'); lab.append(el('span', null, l), i); if (h) lab.append(el('small', 'w-sub', h)); return lab; };
+      const save = el('button', 'shop-btn', 'Save code'); save.type = 'button';
+      save.addEventListener('click', async () => {
+        save.disabled = true;
+        const x = await creditsCall('admin_code_save', { code: code.value.trim(), points: Number(points.value), max: Number(max.value), expires: fromLocal(exp.value) });
+        save.disabled = false;
+        showToast(x.ok ? `Code ${x.data.code} saved.` : (x.data.error || 'Failed.'));
+        if (x.ok) load();
+      });
+      card.append(el('p', 'pd-price-label', 'New code (or edit one by typing its name)'), row('Code', code, '4 to 24 letters or numbers. Not case-sensitive.'),
+        row('CW Points', points), row('How many people can use it', max, '0 = no limit'), row('Expires (optional)', exp), save);
+      box.append(card);
+      const list = r.data.codes || [];
+      const ul = el('ul', 'wallet-list');
+      list.forEach((c) => {
+        const li = el('li');
+        const main = el('div', 'w-main');
+        const expired = c.expires && r.data.now >= c.expires;
+        const full = c.max && c.used >= c.max;
+        main.append(el('span', 'w-amount', `🎟️ ${c.code} · ${c.points} pts`),
+          el('span', 'w-sub', `Used ${c.used}${c.max ? `/${c.max}` : ''} times${c.expires ? ` · ${expired ? 'expired' : 'expires'} ${when(c.expires)}` : ''}${expired || full ? ' · not usable anymore' : ''}`));
+        const right = el('div', 'adm-actions');
+        const edit = el('button', 'shop-btn shop-btn--ghost', 'Edit'); edit.type = 'button';
+        edit.addEventListener('click', () => { code.value = c.code; points.value = c.points; max.value = c.max; exp.value = toLocal(c.expires); code.focus(); });
+        const del = el('button', 'shop-btn shop-btn--ghost acc-danger', 'Delete'); del.type = 'button';
+        del.addEventListener('click', async () => {
+          if (!window.confirm(`Delete code ${c.code}? People won't be able to use it anymore.`)) return;
+          const x = await creditsCall('admin_code_delete', { code: c.code });
+          showToast(x.ok ? 'Code deleted.' : (x.data.error || 'Failed.'));
+          load();
+        });
+        right.append(edit, del);
+        li.append(main, right);
+        ul.append(li);
+      });
+      if (list.length) box.append(ul);
+    };
+    load();
+    return box;
+  }
+
   // ---------- Blocked accounts and IP codes (manage them even if the Discord block link is gone)
   function bansSection() {
     const box = el('div', 'disc');
@@ -955,6 +1012,7 @@
       section('Support', supportSection()),
       section('Discounts', discountsSection()),
       section('Campaigns', campaignsSection()),
+      section('CW Points codes', codesSection()),
       section('Blocked accounts', bansSection()),
       section('Priority Listeners previews', previewsAdmin()),
       section('Orders', ordersSection()),
