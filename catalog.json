@@ -32,12 +32,35 @@
       "status": "open",
       "rating": 5,
       "reviews": 2,
-      "orders": 0,
+      "orders": 6,
       "page": "CW%20PLAY%20Cinema/series.html",
       "featured": false,
       "icon": "fa-film",
       "image": null,
-      "hue": 205
+      "hue": 205,
+      "category": "cinema"
+    },
+    {
+      "key": "cinema-pass",
+      "id": 210,
+      "name": "CW PLAY Cinema Pass",
+      "description": "Watch every series on CW PLAY Cinema, with no tickets needed. Log in to the cinema with the same account you use here.",
+      "rules": [
+        "Watch on series.cwplaymusic.com while your subscription is active.",
+        "Don't record, download or share what you watch.",
+        "Cancel any time in your wallet."
+      ],
+      "credits": 1500,
+      "subscription": "monthly",
+      "category": "cinema",
+      "status": "open",
+      "rating": null,
+      "reviews": 0,
+      "orders": 0,
+      "featured": false,
+      "icon": "fa-ticket",
+      "image": null,
+      "hue": 265
     },
     {
       "key": "personal-avatar",
