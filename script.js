@@ -630,7 +630,7 @@ function renderCatalog() {
     const title = el('h3', null, 'CW PLAY Cinema');
     title.prepend(icon('fa-solid fa-film'));
     const more = el('a', null, 'Visit CW PLAY Cinema');
-    more.href = 'CW%20PLAY%20Cinema/series.html';
+    more.href = 'cinema-login.html';
     head.append(title, el('p', null, 'Screenings and more for CW PLAY Cinema, our virtual cinema. '), more);
     box.append(head);
     cinema.forEach((p) => box.append(productCard(p)));
@@ -796,6 +796,14 @@ function renderProductPage() {
     buy.append(inc);
   }
   if (p.status === 'full') buy.append(notifyForm(p));
+  if (p.key === 'cinema-pass') { // Pass sahibi doğrudan izlemeye geçebilsin (giriş bilgisiyle)
+    const watch = el('a', 'shop-btn shop-btn--ghost', 'Watch on CW PLAY Cinema');
+    watch.href = 'cinema-login.html';
+    watch.prepend(icon('fa-solid fa-play'));
+    const wr = el('p', 'pd-note');
+    wr.append(watch);
+    buy.append(wr);
+  }
   if (isSub) {
     const subNote = el('p', 'pd-note');
     subNote.append(icon('fa-solid fa-rotate'), el('span', null,

@@ -32,7 +32,7 @@
     <li><a href="index.html#about">About</a></li>
     <li><a href="support.html"><i class="fa-solid fa-circle-question"></i> Help</a></li>
     <li><a href="index.html#contact">Contact</a></li>
-    <li><a href="CW%20PLAY%20Cinema/series.html" class="nav-cinema"><i class="fa-solid fa-film"></i> Cinema</a></li>
+    <li><a href="cinema-login.html" class="nav-cinema"><i class="fa-solid fa-film"></i> Cinema</a></li>
   </ul>
 </nav>
 
@@ -45,7 +45,7 @@
 <footer class="site-footer">
   <p>CW PLAY is part of <a href="https://coldworksproduction.com/" target="_blank" rel="noopener">Cold Works Production</a>.</p>
   <p class="footer-links">
-    <a href="CW%20PLAY%20Cinema/series.html">CW PLAY Cinema</a>
+    <a href="cinema-login.html">CW PLAY Cinema</a>
     <a href="Priority%20Listeners/early-access.html">Priority Listeners</a>
     <a href="https://fizzy.coldworksproduction.com/" target="_blank" rel="noopener">Fizzy Littlejoy</a>
     <a href="status.html">Status</a>
@@ -53,7 +53,7 @@
   </p>
 </footer>
 
-<script src="script.js?v=20261030a"></script>
+<script src="script.js?v=20261030b"></script>
 <script>
 // CW PLAY Cinema login: uses your store login (Discord or CW PLAY account), then sends you back to the cinema.
 (async () => {
@@ -67,7 +67,11 @@
   };
   if (!readLogin()) {
     const card = el('div', 'pd-buybox');
-    card.append(el('p', null, 'Log in with Discord or a CW PLAY account. You\'ll come back to the cinema right after.'), loginLink('Log in'));
+    const peek = el('a', 'shop-btn shop-btn--ghost', 'Just look around');
+    peek.href = CINEMA;
+    const row = el('div', 'adm-actions');
+    row.append(loginLink('Log in'), peek);
+    card.append(el('p', null, 'Log in with Discord or a CW PLAY account. You\'ll come back to the cinema right after.'), row);
     box.replaceChildren(head(), card);
     return;
   }
