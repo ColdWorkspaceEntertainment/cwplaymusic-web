@@ -41,7 +41,7 @@ function saveLogin(token) {
 function takeReturnPath() {
   const back = sessionStorage.getItem(RETURN_KEY);
   sessionStorage.removeItem(RETURN_KEY);
-  return back && back.startsWith('/') && !back.startsWith('//') && /(product|wallet|admin|status)\.html/.test(back) ? back : null;
+  return back && back.startsWith('/') && !back.startsWith('//') && /(product|wallet|admin|status|rewards|cinema-login)\.html/.test(back) ? back : null;
 }
 
 /** Opens the login page (Discord or CW PLAY account) and remembers this page to come back to. */
