@@ -446,6 +446,21 @@
     return box;
   }
 
+  // ---------- CW PLAY Cinema: find the account behind a watermark code (CW-XXXXXX) seen on a leaked video
+  function wmSection() {
+    const box = el('div', 'disc');
+    const input = el('input'); Object.assign(input, { maxLength: 12, placeholder: 'CW-7F3A2B' });
+    const go = el('button', 'shop-btn', 'Find account'); go.type = 'button';
+    const outp = el('p', 'w-sub', 'Every Cinema Pass account sees its own code next to "CW PLAY Cinema" on the video. Type a code from a leaked recording to see whose account it was.');
+    go.addEventListener('click', async () => {
+      const r = await apiCall(CREDITS_API.replace('credits.php', 'cinema.php'), 'admin_wm', { code: input.value.trim() });
+      outp.textContent = !r.ok ? (r.data.error || 'Failed.') : r.data.found ? `${input.value.trim().toUpperCase()} → ${r.data.found.name} (${r.data.found.id})` : 'No account has this code.';
+    });
+    const row = el('div', 'notify-row'); row.append(input, go);
+    box.append(row, outp);
+    return box;
+  }
+
   // ---------- Blocked accounts and IP codes (manage them even if the Discord block link is gone)
   function bansSection() {
     const box = el('div', 'disc');
@@ -1014,6 +1029,7 @@
       section('Campaigns', campaignsSection()),
       section('CW Points codes', codesSection()),
       section('Blocked accounts', bansSection()),
+      section('Cinema watermark codes', wmSection()),
       section('Priority Listeners previews', previewsAdmin()),
       section('Orders', ordersSection()),
       section('Reviews waiting', reviewsBox),
